@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnec
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import db
+from .analysis.engine import TIMEFRAMES, AnalysisEngine
 from .config import get_settings
 from .data.alpaca_rest import AlpacaRest
 from .data.demo import run_demo
@@ -28,7 +29,12 @@ async def lifespan(app: FastAPI):
     engine = db.make_engine(s.effective_database_url)
     rest = AlpacaRest(s) if s.resolved_source == "alpaca" else None
     hub = MarketHub(s, engine, rest)
+    analysis = AnalysisEngine(hub)
+    await analysis.reload_async()
+    hub.add_bar_listener(analysis.on_bar)
+    hub.history_listeners.append(analysis.reload_async)
     app.state.hub = hub
+    app.state.analysis = analysis
     log.info("data source: %s (feed=%s)", s.resolved_source, s.alpaca_stock_feed)
     if s.resolved_source == "alpaca":
         hub.start_task(run_alpaca(hub))
@@ -65,6 +71,10 @@ def _hub() -> MarketHub:
     return app.state.hub
 
 
+def _analysis() -> AnalysisEngine:
+    return app.state.analysis
+
+
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True}
@@ -95,6 +105,30 @@ def bars(symbol: str = Query(..., examples=["IREN", "BTC/USD"]), limit: int = Qu
     return {"symbol": symbol, "bars": [b.to_json() for b in rows]}
 
 
+@app.get("/api/analysis")
+async def analysis(tf: int = Query(1, description="bar size in minutes: 1, 5 or 15")) -> dict:
+    if tf not in TIMEFRAMES:
+        raise HTTPException(400, f"tf must be one of {TIMEFRAMES}")
+    eng = _analysis()
+    if tf == 1 and 1 in eng.latest:
+        return eng.latest[1]
+    return await eng.compute_async(tf)
+
+
+@app.get("/api/chart")
+async def chart(
+    symbol: str = Query("IREN"),
+    tf: int = Query(1),
+    limit: int = Query(500, ge=10, le=5000),
+) -> dict:
+    symbol = symbol.upper()
+    if tf not in TIMEFRAMES:
+        raise HTTPException(400, f"tf must be one of {TIMEFRAMES}")
+    if symbol not in _hub().state:
+        raise HTTPException(404, f"unknown symbol {symbol}")
+    return await _analysis().chart_async(symbol, tf, limit)
+
+
 @app.websocket("/ws")
 async def ws(websocket: WebSocket) -> None:
     await websocket.accept()
@@ -102,6 +136,9 @@ async def ws(websocket: WebSocket) -> None:
     q = hub.subscribe()
     try:
         await websocket.send_json(hub.snapshot())
+        latest = app.state.analysis.latest.get(1)
+        if latest:
+            await websocket.send_json({"type": "analysis", "analysis": latest})
         while True:
             event = await q.get()
             await websocket.send_json(event)

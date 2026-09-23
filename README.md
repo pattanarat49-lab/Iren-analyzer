@@ -12,9 +12,9 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the data-provider comparison, the stack a
 | Phase | Status |
 |---|---|
 | 0. Plan | ✅ done |
-| 1. Live data layer (backend) | ✅ ready for review |
-| 2. Indicators + analysis | ⏳ next |
-| 3. Dashboard UI | — |
+| 1. Live data layer (backend) | ✅ done |
+| 2. Indicators + analysis | ✅ ready for review |
+| 3. Dashboard UI | ⏳ next |
 | 4. Probability engine | — |
 | 5. Track record + auto-retrain | — |
 | 6. Hardening + deploy guide | — |
@@ -55,6 +55,11 @@ Open these in your browser:
 - http://localhost:8000/api/quotes shows the latest price, $ and % change vs previous close,
   bid/ask for IREN, and the halt flag for IREN, CRWV, NBIS, NVDA, QQQ and BTC/USD.
 - http://localhost:8000/api/bars?symbol=IREN&limit=100 shows stored 1-minute bars.
+- http://localhost:8000/api/analysis shows every indicator with its value, a bullish / bearish /
+  neutral signal and a one-sentence Thai explanation, plus correlation and relative strength vs
+  the context tickers. Add `?tf=5` or `?tf=15` for 5- or 15-minute bars.
+- http://localhost:8000/api/chart?symbol=IREN&tf=1&limit=500 shows candles plus
+  EMA/VWAP/Bollinger/RSI/MACD series for the chart.
 - `ws://localhost:8000/ws` is the live event stream the dashboard will use.
 
 ### Run the tests
@@ -93,3 +98,25 @@ MarketHub ── stores completed 1-min bars ──▶ SQLite (data/iren.db) or 
 The free plan streams IEX-exchange trades only, so live **volume, VWAP and relative volume**
 cover just part of the market. Prices are accurate. Set `ALPACA_STOCK_FEED=sip` after
 upgrading to Algo Trader Plus.
+
+---
+
+## Indicators (Phase 2)
+
+Computed on 1-minute bars (or 5/15-minute bars via `?tf=`). The analysis is recomputed on every
+new bar and pushed over `/ws` as an `analysis` event.
+
+| Indicator | Definition | Signal rule |
+|---|---|---|
+| EMA 9 / 21 / 50 | EMA seeded with SMA (TradingView convention) | price above → bullish, below → bearish, within 0.05% → neutral. Also flags 9/21 crosses and the 9 > 21 > 50 stack |
+| VWAP | typical price × volume, reset each US/Eastern day (pre-market included) | above → bullish, below → bearish |
+| RSI(14) | Wilder smoothing | ≥70 overbought → bearish; ≤30 oversold → bullish; 55–70 bullish; 30–45 bearish; otherwise neutral |
+| MACD(12,26,9) | EMA12 − EMA26, signal EMA9 | recent cross or widening histogram → that direction; shrinking histogram → neutral |
+| Bollinger(20,2) | SMA20 ± 2σ (population) | above upper → bearish (stretched); below lower → bullish; upper/lower half → bullish/bearish; also flags squeezes |
+| ATR(14) | Wilder smoothing of True Range | always neutral (size of moves, not direction); compared with its recent average |
+| Relative volume | cumulative volume today ÷ average at the same time of day over the prior 20 days | ≥1.5× confirms the day's direction; ≤0.7× low participation |
+| Correlation / RS | 1-min log-return correlation (60 and 390 bars), beta, performance vs previous close | IREN outperforming by more than 0.5% → bullish, underperforming → bearish |
+
+All indicators are **causal**: a test checks that computing on a prefix of the data gives
+identical values, so there is no look-ahead. RSI is verified against StockCharts' published
+example table.

@@ -96,6 +96,8 @@ class MarketHub:
         self._stream_down_since: float | None = time.monotonic()
         self._needs_gap_fill = False
         self._last_trade_mono: dict[str, float] = {}
+        # Called after bulk history loads (warm-up / demo seed) so caches can reload from the DB.
+        self.history_listeners: list[Callable[[], Awaitable[None]]] = []
 
     # ---- subscribers -----------------------------------------------------------------------
 
@@ -267,6 +269,34 @@ class MarketHub:
             if st.price_ts is None or end > st.price_ts:
                 st.price, st.price_ts = b.close, end
 
+    def prev_close_from_db(self, symbol: str, now: datetime | None = None) -> float | None:
+        """Fallback previous close from stored bars: last bar at/before the previous regular close
+        (stocks) or the close 24 h ago (crypto)."""
+        now = now or datetime.now(UTC)
+        if is_crypto(symbol):
+            cutoff = now - timedelta(hours=24)
+        else:
+            ref = reference_trading_day(now)
+            prev = ref - timedelta(days=1)
+            for _ in range(30):
+                td = trading_day(prev)
+                if td:
+                    break
+                prev -= timedelta(days=1)
+            else:
+                return None
+            cutoff = td.close
+        bars = db.load_bars(self.engine, symbol, start=cutoff - timedelta(days=5), end=cutoff)
+        return bars[-1].close if bars else None
+
+    async def history_loaded(self) -> None:
+        await asyncio.to_thread(self.load_recent_from_db)
+        for fn in self.history_listeners:
+            try:
+                await fn()
+            except Exception:  # noqa: BLE001
+                log.exception("history listener failed")
+
     def start_task(self, coro) -> asyncio.Task:  # noqa: ANN001
         t = asyncio.create_task(coro)
         self._tasks.append(t)
@@ -366,7 +396,7 @@ async def run_alpaca(hub: MarketHub) -> None:
     hub.start_task(_halt_watch(hub))
 
 
-async def warm_up(hub: MarketHub, days: int = 7) -> None:
+async def warm_up(hub: MarketHub, days: int = 30) -> None:
     """Make sure the last few days of bars are in the DB so charts/indicators have context."""
     rest = hub.rest
     assert rest is not None
@@ -392,7 +422,7 @@ async def warm_up(hub: MarketHub, days: int = 7) -> None:
             log.warning("warm-up failed: %s", e)
             if hub.status.mode != "live":
                 hub._set_mode("error", f"ดึงข้อมูลย้อนหลังไม่สำเร็จ: {e}")
-    hub.load_recent_from_db()
+    await hub.history_loaded()
 
 
 async def _gap_fill(hub: MarketHub) -> None:
@@ -472,7 +502,7 @@ async def _snapshot_loop(hub: MarketHub) -> None:
                     st.prev_close = float(prev) if prev else st.prev_close
                 else:
                     prev, same = closes_from_snapshot(snap, ref_day)
-                    st.prev_close = prev or st.prev_close
+                    st.prev_close = prev or st.prev_close or hub.prev_close_from_db(sym)
                     st.session_close = same if ss in ("after", "closed") else None
                 lt = snap.get("latestTrade")
                 if lt and lt.get("p"):

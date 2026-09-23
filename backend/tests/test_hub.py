@@ -78,3 +78,13 @@ def test_closes_from_snapshot():
     assert closes_from_snapshot(snap, date(2026, 9, 23)) == (40.0, 42.0)
     # pre-market next day: dailyBar is still yesterday's
     assert closes_from_snapshot(snap, date(2026, 9, 24)) == (42.0, None)
+
+
+def test_prev_close_from_db(settings, engine):
+    hub = MarketHub(settings, engine)
+    db.upsert_bars(engine, [
+        Bar("IREN", et(2026, 9, 22, 15, 59), 40, 40, 40, 40.0, 1, feed="iex"),
+        Bar("IREN", et(2026, 9, 22, 17, 0), 41, 41, 41, 41.0, 1, feed="iex"),  # after-hours, ignored
+        Bar("IREN", et(2026, 9, 23, 10, 0), 42, 42, 42, 42.0, 1, feed="iex"),
+    ])
+    assert hub.prev_close_from_db("IREN", et(2026, 9, 23, 10, 5)) == 40.0

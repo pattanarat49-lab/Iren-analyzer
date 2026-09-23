@@ -22,12 +22,12 @@ UTC = timezone.utc
 SEED_PRICES = {"IREN": 40.0, "CRWV": 120.0, "NBIS": 100.0, "NVDA": 180.0, "QQQ": 580.0, "BTC/USD": 110_000.0}
 # (beta to common factor, idiosyncratic vol) per minute
 PARAMS = {
-    "IREN": (1.6, 0.0035),
-    "CRWV": (1.5, 0.0035),
-    "NBIS": (1.4, 0.003),
-    "NVDA": (1.0, 0.0015),
-    "QQQ": (0.5, 0.0005),
-    "BTC/USD": (0.8, 0.0012),
+    "IREN": (1.6, 0.0015),
+    "CRWV": (1.5, 0.0015),
+    "NBIS": (1.4, 0.0013),
+    "NVDA": (1.0, 0.0007),
+    "QQQ": (0.5, 0.0002),
+    "BTC/USD": (0.8, 0.0006),
 }
 FACTOR_VOL = 0.001
 
@@ -45,19 +45,21 @@ class Simulator:
             self.price[s] = max(0.01, self.price[s] * math.exp(r))
         return dict(self.price)
 
-    def minute_bar(self, symbol: str, ts: datetime, n_ticks: int = 6) -> Bar:
+    def minute_bar(self, symbol: str, ts: datetime, factor: float, n_ticks: int = 6) -> Bar:
+        """One simulated 1-minute bar; `factor` is the common market move for this minute."""
+        beta, vol = PARAMS.get(symbol, (1.0, 0.002))
         o = self.price[symbol]
         path = [o]
         for _ in range(n_ticks):
-            beta, vol = PARAMS.get(symbol, (1.0, 0.002))
-            path.append(path[-1] * math.exp(self.rng.gauss(0, vol / math.sqrt(n_ticks))))
+            r = (beta * factor + self.rng.gauss(0, vol)) / math.sqrt(n_ticks)
+            path.append(path[-1] * math.exp(r))
         self.price[symbol] = path[-1]
         base_vol = 200_000 if symbol == "IREN" else 50_000
-        vol = abs(self.rng.gauss(base_vol, base_vol / 3))
-        return Bar(symbol, ts, o, max(path), min(path), path[-1], vol, sum(path) / len(path), n_ticks, "demo")
+        v = abs(self.rng.gauss(base_vol, base_vol / 3))
+        return Bar(symbol, ts, o, max(path), min(path), path[-1], v, sum(path) / len(path), n_ticks, "demo")
 
 
-def seed_history(hub: MarketHub, days: int = 5, seed: int = 7) -> int:
+def seed_history(hub: MarketHub, days: int = 30, seed: int = 7) -> int:
     """Generate recent 1-minute history (extended hours for stocks, 24/7 for crypto) if empty."""
     symbols = hub.s.all_symbols
     if all(db.latest_bar_ts(hub.engine, s) for s in symbols):
@@ -69,9 +71,10 @@ def seed_history(hub: MarketHub, days: int = 5, seed: int = 7) -> int:
     ts = start
     while ts < now:
         ss = session_at(ts)
+        factor = sim.rng.gauss(0, FACTOR_VOL)
         for s in symbols:
             if "/" in s or ss.session != "closed":
-                bars.append(sim.minute_bar(s, ts))
+                bars.append(sim.minute_bar(s, ts, factor))
         ts += timedelta(minutes=1)
     return db.upsert_bars(hub.engine, bars)
 
@@ -79,12 +82,12 @@ def seed_history(hub: MarketHub, days: int = 5, seed: int = 7) -> int:
 async def run_demo(hub: MarketHub, tick_s: float = 0.5) -> None:
     hub._set_mode("demo", "ข้อมูลจำลอง (ยังไม่ได้ตั้งค่า Alpaca API key)")
     await asyncio.to_thread(seed_history, hub)
-    hub.load_recent_from_db()
+    await hub.history_loaded()
     sim = Simulator(hub.s.all_symbols)
     for s, st in hub.state.items():
         if st.price:
             sim.price[s] = st.price
-        st.prev_close = st.prev_close or (st.price or sim.price[s]) * 0.98
+        st.prev_close = st.prev_close or hub.prev_close_from_db(s) or (st.price or sim.price[s])
 
     minute = datetime.now(UTC).replace(second=0, microsecond=0)
     opens = dict(sim.price)
