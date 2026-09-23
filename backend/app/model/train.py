@@ -335,6 +335,7 @@ def train_horizon(feats: pd.DataFrame, primary_frame: pd.DataFrame, horizon: str
         "data_start": data.index[0].isoformat() if len(data) else None,
         "data_end": data.index[-1].isoformat() if len(data) else None,
         "features": features,
+        "train_up_rate": float(data["y"].mean()) if len(data) else None,
     }
     if len(data) < 5000:
         return HorizonResult(horizon, {"error": f"ข้อมูลน้อยเกินไป ({len(data)} แถว)"}, None, meta)

@@ -150,6 +150,21 @@ class AnalysisEngine:
             return
         self.prediction = clean_json(pred)
         self.hub.broadcast({"type": "prediction", "prediction": self.prediction})
+        await self._log_prediction(self.prediction)
+
+    async def _log_prediction(self, pred: dict) -> None:
+        """Save one snapshot per horizon per bar for the live track record."""
+        from ..model.tracking import snapshot_rows
+
+        made_at = pred.get("made_at")
+        if not made_at:
+            return
+        rows = snapshot_rows(pred, datetime.fromisoformat(made_at), self.s.resolved_source)
+        if rows:
+            try:
+                await asyncio.to_thread(db.insert_predictions, self.hub.engine, rows)
+            except Exception:  # noqa: BLE001
+                log.exception("failed to store prediction snapshot")
 
     # ---- analysis --------------------------------------------------------------------------
 

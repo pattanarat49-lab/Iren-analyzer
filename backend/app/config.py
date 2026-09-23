@@ -57,6 +57,10 @@ class Settings(BaseSettings):
 
     history_years: float = Field(default=2.0, gt=0)
 
+    # Nightly retrain after the extended session ends (20:00 ET) + this many minutes.
+    retrain_enabled: bool = True
+    retrain_delay_min: int = 30
+
     @field_validator("database_url", mode="before")
     @classmethod
     def _default_db(cls, v: str | None) -> str:

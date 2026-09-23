@@ -19,6 +19,8 @@ from .data.hub import MarketHub, run_alpaca
 from .market.clock import dual_time, session_at
 from .model.features import HORIZONS
 from .model.predictor import Predictor, model_dir
+from .model.scheduler import Retrainer
+from .model.tracking import resolve_due, track_record
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("iren")
@@ -40,6 +42,11 @@ async def lifespan(app: FastAPI):
     hub.history_listeners.append(analysis.reload_async)
     app.state.hub = hub
     app.state.analysis = analysis
+    retrainer = Retrainer(s, engine)
+    app.state.retrainer = retrainer
+    hub.start_task(_resolve_loop(hub))
+    if s.retrain_enabled:
+        hub.start_task(retrainer.loop())
     log.info("data source: %s (feed=%s)", s.resolved_source, s.alpaca_stock_feed)
     if s.resolved_source == "alpaca":
         hub.start_task(run_alpaca(hub))
@@ -53,6 +60,19 @@ async def lifespan(app: FastAPI):
         if rest:
             await rest.aclose()
         engine.dispose()
+
+
+async def _resolve_loop(hub: MarketHub) -> None:
+    """Fill in outcomes of past predictions as their horizons pass."""
+    while True:
+        try:
+            counts = await asyncio.to_thread(resolve_due, hub.engine, hub.s.primary_symbol.upper())
+            if counts["resolved"] or counts["void"]:
+                log.info("track record: %s", counts)
+                hub.broadcast({"type": "track_record_updated", "counts": counts})
+        except Exception:  # noqa: BLE001
+            log.exception("resolving predictions failed")
+        await asyncio.sleep(30)
 
 
 async def _clock_loop(hub: MarketHub) -> None:
@@ -136,7 +156,19 @@ async def prediction(horizon: str | None = Query(None, description="5m, 15m, 1h 
 @app.get("/api/models")
 def models() -> dict:
     p = _analysis().predictor
-    return {"source": get_settings().resolved_source, "horizons": p.summary() if p else {}}
+    return {
+        "source": get_settings().resolved_source,
+        "retrain": app.state.retrainer.status(),
+        "horizons": p.summary() if p else {},
+    }
+
+
+@app.get("/api/track-record")
+def track_record_api(days: int = Query(30, ge=1, le=365)) -> dict:
+    hub = _hub()
+    rec = track_record(hub.engine, hub.s.resolved_source, days)
+    rec["retrain"] = app.state.retrainer.status()
+    return rec
 
 
 @app.get("/api/chart")

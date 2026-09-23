@@ -91,6 +91,7 @@ class Predictor:
                 "model": m.kind,
                 "calibration": m.calibration,
                 "edge": metrics["edge"],
+                "base_rate": b["meta"].get("train_up_rate", metrics.get("up_rate")),
                 "edge_reason": metrics["edge_reason"],
                 "metrics": {
                     "accuracy": best["accuracy"],
@@ -113,6 +114,7 @@ class Predictor:
             **base,
             "available": True,
             "bar_time": dual_time(feats.index[-1].to_pydatetime()),
+            "made_at": feats.index[-1].isoformat(),  # decision time (UTC) used for the track record
             "price": price,
             "live_price": live_price,
             "horizons": out,

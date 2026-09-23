@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -17,8 +18,10 @@ from sqlalchemy import (
     Table,
     Text,
     create_engine,
+    UniqueConstraint,
     event,
     select,
+    update,
 )
 from sqlalchemy.engine import Engine
 
@@ -55,6 +58,29 @@ stream_events = Table(
     Column("ts", DateTime, nullable=False),  # naive UTC
     Column("kind", String(32), nullable=False),  # connected / disconnected / polling / halt / error
     Column("detail", Text),
+)
+
+
+# One row per horizon per minute: what the model said, and (later) what actually happened.
+predictions = Table(
+    "predictions",
+    metadata,
+    Column("id", BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True),
+    Column("made_at", DateTime, nullable=False),  # decision time = end of the bar used (naive UTC)
+    Column("horizon", String(8), nullable=False),
+    Column("source", String(8), nullable=False),  # alpaca | demo
+    Column("p_up", Float, nullable=False),
+    Column("base_rate", Float),  # training up-rate: the naive baseline's forecast
+    Column("price", Float, nullable=False),
+    Column("target_at", DateTime, nullable=False),  # when the outcome is decided (naive UTC)
+    Column("model", String(16)),
+    Column("model_trained_at", String(40)),
+    Column("edge", Boolean),
+    Column("outcome", Integer),  # 1 = price at target > price, 0 = not, NULL = pending / void
+    Column("outcome_price", Float),
+    Column("status", String(8), nullable=False, default="pending"),  # pending | resolved | void
+    Column("resolved_at", DateTime),
+    UniqueConstraint("made_at", "horizon", "source", name="uq_prediction"),
 )
 
 
@@ -141,3 +167,82 @@ def recent_events(engine: Engine, limit: int = 50) -> Sequence[dict]:
     q = select(stream_events).order_by(stream_events.c.id.desc()).limit(limit)
     with engine.connect() as conn:
         return [dict(r) for r in conn.execute(q).mappings()]
+
+
+# ---- predictions / track record ----------------------------------------------------------------
+
+
+def insert_predictions(engine: Engine, rows: list[dict]) -> int:
+    """Insert prediction snapshots; a (made_at, horizon, source) that already exists is ignored."""
+    if not rows:
+        return 0
+    insert = _insert(engine)
+    clean = [{**r, "made_at": _naive_utc(r["made_at"]), "target_at": _naive_utc(r["target_at"]), "status": "pending"} for r in rows]
+    with engine.begin() as conn:
+        res = conn.execute(insert(predictions).values(clean).on_conflict_do_nothing(index_elements=["made_at", "horizon", "source"]))
+    return res.rowcount or 0
+
+
+def pending_predictions(engine: Engine, due_before: datetime, limit: int = 5000) -> list[dict]:
+    q = (
+        select(predictions)
+        .where(predictions.c.status == "pending", predictions.c.target_at <= _naive_utc(due_before))
+        .order_by(predictions.c.target_at)
+        .limit(limit)
+    )
+    with engine.connect() as conn:
+        rows = [dict(r) for r in conn.execute(q).mappings()]
+    for r in rows:
+        r["made_at"], r["target_at"] = to_utc(r["made_at"]), to_utc(r["target_at"])
+    return rows
+
+
+def resolve_prediction(engine: Engine, pid: int, *, status: str, outcome: int | None, outcome_price: float | None, now: datetime) -> None:
+    with engine.begin() as conn:
+        conn.execute(
+            update(predictions)
+            .where(predictions.c.id == pid)
+            .values(status=status, outcome=outcome, outcome_price=outcome_price, resolved_at=_naive_utc(now))
+        )
+
+
+def resolved_predictions(engine: Engine, source: str, since: datetime, horizon: str | None = None) -> list[dict]:
+    q = select(predictions).where(
+        predictions.c.status == "resolved", predictions.c.source == source, predictions.c.made_at >= _naive_utc(since)
+    )
+    if horizon:
+        q = q.where(predictions.c.horizon == horizon)
+    with engine.connect() as conn:
+        rows = [dict(r) for r in conn.execute(q.order_by(predictions.c.made_at)).mappings()]
+    for r in rows:
+        r["made_at"], r["target_at"] = to_utc(r["made_at"]), to_utc(r["target_at"])
+    return rows
+
+
+def count_pending(engine: Engine, source: str) -> dict[str, int]:
+    from sqlalchemy import func
+
+    q = (
+        select(predictions.c.horizon, func.count())
+        .where(predictions.c.status == "pending", predictions.c.source == source)
+        .group_by(predictions.c.horizon)
+    )
+    with engine.connect() as conn:
+        return {h: n for h, n in conn.execute(q)}
+
+
+def last_bar_ending_by(engine: Engine, symbol: str, t: datetime, lookback: timedelta = timedelta(days=4)) -> Bar | None:
+    """The bar whose close is the last trade price at time t (bar end = ts + 1 min <= t)."""
+    q = (
+        select(bars)
+        .where(
+            bars.c.symbol == symbol,
+            bars.c.ts <= _naive_utc(t - timedelta(minutes=1)),
+            bars.c.ts >= _naive_utc(t - lookback),
+        )
+        .order_by(bars.c.ts.desc())
+        .limit(1)
+    )
+    with engine.connect() as conn:
+        row = conn.execute(q).mappings().first()
+    return Bar.from_row(row) if row else None

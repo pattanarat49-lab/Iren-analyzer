@@ -160,3 +160,44 @@ export type ServerEvent =
   | { type: "clock"; server_time: DualTime; market: MarketState }
   | { type: "analysis"; analysis: Analysis }
   | { type: "prediction"; prediction: Prediction };
+
+export type CalibrationBin = { bin_low: number; bin_high: number; mean_p: number; observed: number; n: number };
+
+export type TrackHorizon = {
+  horizon: Horizon;
+  label: string;
+  n: number;
+  pending: number;
+  hit_rate?: number;
+  baseline_hit_rate?: number;
+  brier?: number;
+  baseline_brier?: number;
+  up_rate?: number;
+  n_days?: number;
+  brier_diff?: number;
+  brier_diff_ci?: [number, number];
+  verdict?: "insufficient" | "better" | "worse" | "no_difference";
+  avg_p_up?: number;
+  confident_n?: number;
+  confident_hit_rate?: number | null;
+  calibration?: CalibrationBin[];
+  daily?: { day: string; n: number; hit_rate: number }[];
+  recent?: { made_at: DualTime; p_up: number; price: number; outcome_price: number; outcome: number; hit: boolean }[];
+};
+
+export type RetrainStatus = {
+  enabled: boolean;
+  state: "idle" | "running" | "ok" | "failed";
+  last_started: DualTime | null;
+  last_finished: DualTime | null;
+  last_message: string;
+  next_run: DualTime | null;
+};
+
+export type TrackRecord = {
+  as_of: DualTime;
+  source: "alpaca" | "demo";
+  days: number;
+  horizons: Record<Horizon, TrackHorizon>;
+  retrain: RetrainStatus;
+};

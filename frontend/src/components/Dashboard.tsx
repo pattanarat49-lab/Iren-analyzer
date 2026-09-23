@@ -67,7 +67,7 @@ export function Dashboard() {
               <ProbabilityGauge horizon={horizon} onHorizon={setHorizon} prediction={pred} />
             </div>
             <ContextPanel analysis={s.analysis} quotes={s.quotes} primary={primary} />
-            <TrackRecordPanel />
+            <TrackRecordPanel horizon={horizon} />
           </div>
         </div>
       </main>

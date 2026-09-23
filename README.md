@@ -15,9 +15,9 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the data-provider comparison, the stack a
 | 1. Live data layer (backend) | ✅ done |
 | 2. Indicators + analysis | ✅ done |
 | 3. Dashboard UI | ✅ done |
-| 4. Probability engine | ✅ ready for review |
-| 5. Track record + auto-retrain | ⏳ next |
-| 6. Hardening + deploy guide | — |
+| 4. Probability engine | ✅ done |
+| 5. Track record + auto-retrain | ✅ ready for review |
+| 6. Hardening + deploy guide | ⏳ next |
 
 ---
 
@@ -202,3 +202,29 @@ momentum signal is planted** in synthetic data, with calibrated probabilities.
 
 Real and demo models are stored separately (`models/alpaca/` vs `models/demo/`), so models
 trained on simulated data can never drive real predictions.
+
+---
+
+## Live track record and nightly retrain (Phase 5)
+
+- **Snapshots:** on every new 1-minute bar the server stores one prediction per horizon in the
+  `predictions` table (probability, price, target time, model and training time). A 1-hour
+  forecast that would end after the extended session is not logged, the same rule the training
+  labels use.
+- **Outcomes:** every 30 s, predictions whose target time has passed are scored with exactly
+  the training-label definition: the last trade price at the target, from the same trading day.
+  If data for the target has not arrived (feed gap, server off) the prediction waits, and after
+  3 days it is voided rather than guessed.
+- **Track-record page** at http://localhost:3000/track-record, per horizon over 7, 30 or 90 days:
+  hit rate and Brier score vs the naive baseline, a calibration chart (predicted vs observed,
+  with hover and a table view), daily hit rate, and recent predictions. The live record gets the
+  same statistical test as the backtest: it only says "better than the simple guess" when the
+  Brier improvement is significant (day-block bootstrap, 95%) over at least 20 days. Nothing is
+  filtered or cherry-picked.
+- **Nightly retrain:** 30 minutes after each trading day's extended session ends (20:30 ET, or
+  17:30 on half days), the server runs `scripts.backfill` (incremental, Alpaca mode only) and
+  then `scripts.train` as subprocesses. The live predictor picks up the new models
+  automatically. Status and next run time are shown on the track-record page and at
+  `/api/models`. Turn it off with `RETRAIN_ENABLED=false`.
+
+API: `GET /api/track-record?days=30`, `GET /api/models`, `GET /api/prediction?horizon=15m`.
