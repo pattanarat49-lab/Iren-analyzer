@@ -45,3 +45,10 @@ def test_postgres_schema_and_upserts_compile():
 def test_models_dir_env(tmp_path):
     s = Settings(_env_file=None, models_dir=str(tmp_path / "m"))
     assert s.models_dir == tmp_path / "m"
+
+
+def test_apca_env_names_are_accepted(monkeypatch):
+    monkeypatch.setenv("APCA_API_KEY_ID", "id-from-apca")
+    monkeypatch.setenv("APCA_API_SECRET_KEY", "secret-from-apca")
+    s = Settings(_env_file=None)
+    assert s.alpaca_api_key_id == "id-from-apca" and s.has_alpaca_keys
