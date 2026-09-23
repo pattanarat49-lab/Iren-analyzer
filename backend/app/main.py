@@ -12,11 +12,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import db
 from .analysis.engine import TIMEFRAMES, AnalysisEngine
-from .config import get_settings
+from .config import REPO_DIR, get_settings
 from .data.alpaca_rest import AlpacaRest
 from .data.demo import run_demo
 from .data.hub import MarketHub, run_alpaca
 from .market.clock import dual_time, session_at
+from .model.features import HORIZONS
+from .model.predictor import Predictor, model_dir
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("iren")
@@ -30,6 +32,9 @@ async def lifespan(app: FastAPI):
     rest = AlpacaRest(s) if s.resolved_source == "alpaca" else None
     hub = MarketHub(s, engine, rest)
     analysis = AnalysisEngine(hub)
+    primary = s.primary_symbol.upper()
+    analysis.predictor = Predictor(model_dir(REPO_DIR, s.resolved_source), primary, [x for x in s.all_symbols if x != primary])
+    await asyncio.to_thread(analysis.predictor.load)
     await analysis.reload_async()
     hub.add_bar_listener(analysis.on_bar)
     hub.history_listeners.append(analysis.reload_async)
@@ -115,6 +120,25 @@ async def analysis(tf: int = Query(1, description="bar size in minutes: 1, 5 or 
     return await eng.compute_async(tf)
 
 
+@app.get("/api/prediction")
+async def prediction(horizon: str | None = Query(None, description="5m, 15m, 1h or eod; omit for all")) -> dict:
+    eng = _analysis()
+    if eng.prediction is None:
+        await eng.update_prediction()
+    pred = eng.prediction or {"available": False, "horizons": {}}
+    if horizon is None:
+        return pred
+    if horizon not in HORIZONS:
+        raise HTTPException(400, f"horizon must be one of {list(HORIZONS)}")
+    return {**{k: v for k, v in pred.items() if k != "horizons"}, **(pred.get("horizons") or {}).get(horizon, {})}
+
+
+@app.get("/api/models")
+def models() -> dict:
+    p = _analysis().predictor
+    return {"source": get_settings().resolved_source, "horizons": p.summary() if p else {}}
+
+
 @app.get("/api/chart")
 async def chart(
     symbol: str = Query("IREN"),
@@ -139,6 +163,8 @@ async def ws(websocket: WebSocket) -> None:
         latest = app.state.analysis.latest.get(1)
         if latest:
             await websocket.send_json({"type": "analysis", "analysis": latest})
+        if app.state.analysis.prediction:
+            await websocket.send_json({"type": "prediction", "prediction": app.state.analysis.prediction})
         while True:
             event = await q.get()
             await websocket.send_json(event)

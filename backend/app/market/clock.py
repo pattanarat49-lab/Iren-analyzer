@@ -87,6 +87,14 @@ def _schedule(year: int) -> dict[date, TradingDay]:
     return out
 
 
+def schedule_between(start: date, end: date) -> list[TradingDay]:
+    """All trading days in [start, end], in order."""
+    out: list[TradingDay] = []
+    for year in range(start.year, end.year + 1):
+        out.extend(td for d, td in sorted(_schedule(year).items()) if start <= d <= end)
+    return out
+
+
 def trading_day(d: date) -> TradingDay | None:
     return _schedule(d.year).get(d)
 

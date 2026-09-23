@@ -70,6 +70,8 @@ class AnalysisEngine:
         self.latest: dict[int, dict] = {}
         self._pending: asyncio.Task | None = None
         self._dirty = False
+        self.predictor = None  # set by main when models are available
+        self.prediction: dict | None = None
 
     # ---- data ------------------------------------------------------------------------------
 
@@ -131,6 +133,23 @@ class AnalysisEngine:
             self.latest[1] = result
             self.hub.broadcast({"type": "analysis", "analysis": result})
             log.debug("analysis recomputed in %.0f ms", (time.perf_counter() - t0) * 1000)
+            await self.update_prediction()
+
+    async def update_prediction(self) -> None:
+        if self.predictor is None:
+            return
+        from ..model.predictor import clean_json
+
+        st = self.hub.state.get(self.primary)
+        live = st.price if st else None
+        try:
+            self.predictor.load()  # cheap: only reloads files whose mtime changed
+            pred = await asyncio.to_thread(self.predictor.predict, self.snapshot(), live)
+        except Exception:  # noqa: BLE001
+            log.exception("prediction failed")
+            return
+        self.prediction = clean_json(pred)
+        self.hub.broadcast({"type": "prediction", "prediction": self.prediction})
 
     # ---- analysis --------------------------------------------------------------------------
 

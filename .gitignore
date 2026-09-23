@@ -22,8 +22,7 @@ next-env.d.ts
 # Data, models, reports
 data/*.db*
 data/*.sqlite*
-models/*.pkl
-models/*.joblib
+models/
 reports/*
 !reports/.gitkeep
 

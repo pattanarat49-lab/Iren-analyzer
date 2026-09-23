@@ -2,7 +2,7 @@
 
 import { useEffect, useReducer, useRef } from "react";
 import { backendUrl, wsUrl } from "./config";
-import type { Analysis, Bar, DualTime, HubStatus, MarketState, Quote, ServerEvent } from "./types";
+import type { Analysis, Bar, DualTime, HubStatus, MarketState, Prediction, Quote, ServerEvent } from "./types";
 
 export type Link = "connecting" | "open" | "polling" | "offline";
 
@@ -13,6 +13,7 @@ export type StreamState = {
   status: HubStatus | null;
   quotes: Record<string, Quote>;
   analysis: Analysis | null;
+  prediction: Prediction | null;
   /** Increments whenever a completed/corrected bar arrives, keyed by symbol. */
   barSeq: Record<string, number>;
   lastBar: Record<string, Bar>;
@@ -26,6 +27,7 @@ const initial: StreamState = {
   status: null,
   quotes: {},
   analysis: null,
+  prediction: null,
   barSeq: {},
   lastBar: {},
   lastMessageAt: null,
@@ -34,7 +36,7 @@ const initial: StreamState = {
 type Action =
   | { kind: "event"; event: ServerEvent }
   | { kind: "link"; link: Link }
-  | { kind: "polled"; snapshot?: Extract<ServerEvent, { type: "snapshot" }>; analysis?: Analysis };
+  | { kind: "polled"; snapshot?: Extract<ServerEvent, { type: "snapshot" }>; analysis?: Analysis; prediction?: Prediction };
 
 function reducer(s: StreamState, a: Action): StreamState {
   if (a.kind === "link") return s.link === a.link ? s : { ...s, link: a.link };
@@ -50,6 +52,7 @@ function reducer(s: StreamState, a: Action): StreamState {
       };
     }
     if (a.analysis) next.analysis = a.analysis;
+    if (a.prediction) next.prediction = a.prediction;
     return next;
   }
   const e = a.event;
@@ -71,6 +74,8 @@ function reducer(s: StreamState, a: Action): StreamState {
       return { ...base, serverTime: e.server_time, market: e.market };
     case "analysis":
       return { ...base, analysis: e.analysis };
+    case "prediction":
+      return { ...base, prediction: e.prediction };
     default:
       return base;
   }
@@ -96,12 +101,11 @@ export function useMarketStream(): StreamState {
 
     const poll = async () => {
       try {
-        const [snap, analysis] = await Promise.all([
-          fetch(`${backendUrl()}/api/status`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : undefined)),
-          fetch(`${backendUrl()}/api/analysis`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : undefined)),
-        ]);
+        const get = (path: string) =>
+          fetch(`${backendUrl()}${path}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : undefined));
+        const [snap, analysis, prediction] = await Promise.all([get("/api/status"), get("/api/analysis"), get("/api/prediction")]);
         if (!stopped) {
-          dispatch({ kind: "polled", snapshot: snap, analysis });
+          dispatch({ kind: "polled", snapshot: snap, analysis, prediction });
           dispatch({ kind: "link", link: "polling" });
         }
       } catch {

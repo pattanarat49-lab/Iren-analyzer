@@ -14,9 +14,9 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the data-provider comparison, the stack a
 | 0. Plan | ✅ done |
 | 1. Live data layer (backend) | ✅ done |
 | 2. Indicators + analysis | ✅ done |
-| 3. Dashboard UI | ✅ ready for review |
-| 4. Probability engine | ⏳ next |
-| 5. Track record + auto-retrain | — |
+| 3. Dashboard UI | ✅ done |
+| 4. Probability engine | ✅ ready for review |
+| 5. Track record + auto-retrain | ⏳ next |
 | 6. Hardening + deploy guide | — |
 
 ---
@@ -41,7 +41,10 @@ cp ../.env.example .env
 # 2) (optional, takes a while) download 2 years of 1-minute history
 python -m scripts.backfill
 
-# 3) start the server
+# 3) (after the backfill) train the probability models, a few minutes
+python -m scripts.train
+
+# 4) start the server
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -161,3 +164,41 @@ Line colours come from a colour-vision-deficiency-validated palette on the dark 
 EMA 9 blue `#3987e5`, EMA 21 orange `#d95926`, EMA 50 aqua `#199e70` and VWAP amber
 `#c98500` (dashed). Bullish and bearish badges always pair colour with an icon (▲ ▼ ●) and a
 Thai label.
+
+---
+
+## Probability engine (Phase 4)
+
+**Question answered:** at this moment, what is the probability that IREN's last trade price at
+the end of the horizon (5 min, 15 min, 1 hour, or the next regular close) is **strictly higher**
+than now? P(up) + P(down) = 100%.
+
+```bash
+cd backend
+python -m scripts.train      # train + save models for all horizons (models/<source>/)
+python -m scripts.backtest   # out-of-sample report -> reports/backtest-<source>-<time>.md/.json
+```
+
+The running server loads new model files automatically on the next bar.
+
+| Step | How |
+|---|---|
+| Features | returns over 1/5/15/30/60 min; distance to EMA 9/21/50 and VWAP; RSI; MACD; Bollinger %B and width; ATR; relative volume; volatility regime (30/120-min vol, ATR vs its average); change vs previous close; position in today's range; returns of CIFR, NBIS, CRWV, NVDA, QQQ, BTC over 5/15/60 min and IREN's 15-min relative strength vs each; time of day, day of week, session, minutes to the close |
+| Models | logistic regression (baseline) and LightGBM; the one with the lower out-of-sample Brier score is used |
+| Validation | expanding-window **walk-forward**: 5 consecutive test blocks over the most recent half of the days. Training rows are **purged by label end time**, so no training label overlaps the test period. Nothing is shuffled |
+| Calibration | isotonic regression (Platt scaling when data is small), fitted on the most recent 20% of each training window, purged the same way |
+| Baseline | always predict the training window's base rate of "up" |
+| Edge rule | the model's Brier score must beat the baseline's with 95% confidence (bootstrap over whole days), accuracy must be higher, and there must be at least 20 test days. Otherwise the dashboard shows **"⚠ ยังไม่พิสูจน์ว่ามีความได้เปรียบ (no proven edge)"** with the reason. It is never hidden |
+| Top factors | LightGBM: exact TreeSHAP values. Logistic regression: coefficient × standardised value. Shown in Thai as "ดันให้ขึ้น" and "กดให้ลง" |
+| Expected move | ±ATR(14, 1-min) × √minutes (random-walk scaling). For end of day, minutes to the close, capped at one session |
+
+Tests check the labels against hand-computed future prices, that features are causal, that
+live-window features match training features, and that walk-forward training never sees a test
+label. The pipeline must report **no edge on a pure random walk** and **find the edge when a
+momentum signal is planted** in synthetic data, with calibrated probabilities.
+
+> Realistic expectation: for a single stock at short horizons, out-of-sample accuracy is usually
+> around 50–54%. "No proven edge" is a common, honest outcome, especially for 5 minutes.
+
+Real and demo models are stored separately (`models/alpaca/` vs `models/demo/`), so models
+trained on simulated data can never drive real predictions.

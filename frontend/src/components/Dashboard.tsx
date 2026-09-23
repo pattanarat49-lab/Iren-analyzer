@@ -6,6 +6,7 @@ import type { Analysis } from "@/lib/types";
 import { useMarketStream } from "@/lib/useMarketStream";
 import { ContextPanel } from "./ContextPanel";
 import { Disclaimer } from "./Disclaimer";
+import { FactorsPanel } from "./FactorsPanel";
 import { IndicatorPanel } from "./IndicatorPanel";
 import { PriceChart } from "./PriceChart";
 import { PriceHeader } from "./PriceHeader";
@@ -39,6 +40,7 @@ export function Dashboard() {
   }, [tf, barSeq]);
 
   const analysis = tf === 1 ? s.analysis : tfAnalysis;
+  const pred = s.prediction?.horizons[horizon];
 
   return (
     <>
@@ -48,7 +50,7 @@ export function Dashboard() {
         <div className="grid gap-4 lg:grid-cols-12">
           <div className="space-y-4 lg:col-span-8">
             <div className="lg:hidden">
-              <ProbabilityGauge horizon={horizon} onHorizon={setHorizon} pUp={null} />
+              <ProbabilityGauge horizon={horizon} onHorizon={setHorizon} prediction={pred} />
             </div>
             <Card
               title="กราฟราคา"
@@ -56,12 +58,13 @@ export function Dashboard() {
             >
               <PriceChart symbol={primary} tf={tf} refreshKey={barSeq} forming={s.quotes[primary]?.forming_bar} />
             </Card>
+            <FactorsPanel prediction={pred} />
             <IndicatorPanel analysis={analysis} tf={tf} />
           </div>
 
           <div className="space-y-4 lg:col-span-4">
             <div className="hidden lg:block">
-              <ProbabilityGauge horizon={horizon} onHorizon={setHorizon} pUp={null} />
+              <ProbabilityGauge horizon={horizon} onHorizon={setHorizon} prediction={pred} />
             </div>
             <ContextPanel analysis={s.analysis} quotes={s.quotes} primary={primary} />
             <TrackRecordPanel />

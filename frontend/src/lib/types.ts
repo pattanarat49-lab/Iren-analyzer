@@ -103,6 +103,49 @@ export type ChartPayload = {
   series: Record<string, ChartPoint[]>;
 };
 
+export type Horizon = "5m" | "15m" | "1h" | "eod";
+
+export type Factor = { feature: string; label: string; value: string; impact: number; share: number };
+
+export type HorizonPrediction =
+  | { horizon: Horizon; label: string; available: false; reason: string }
+  | {
+      horizon: Horizon;
+      label: string;
+      available: true;
+      p_up: number;
+      p_down: number;
+      model: "logreg" | "lgbm";
+      calibration: string;
+      edge: boolean;
+      edge_reason: string;
+      metrics: {
+        accuracy: number;
+        brier: number;
+        auc: number | null;
+        baseline_accuracy: number;
+        baseline_brier: number;
+        brier_diff_ci: [number, number];
+        n_test: number;
+        n_test_days: number;
+        up_rate: number;
+        reliability: { bin_low: number; bin_high: number; mean_p: number; observed: number; n: number }[];
+      };
+      factors: { up: Factor[]; down: Factor[] };
+      expected_move: { minutes: number; move: number; move_pct: number; low: number; high: number } | null;
+      trained_at: string;
+      source: "alpaca" | "demo";
+    };
+
+export type Prediction = {
+  as_of: DualTime;
+  available: boolean;
+  bar_time?: DualTime;
+  price?: number;
+  live_price?: number | null;
+  horizons: Partial<Record<Horizon, HorizonPrediction>>;
+};
+
 export type ServerEvent =
   | {
       type: "snapshot";
@@ -115,4 +158,5 @@ export type ServerEvent =
   | { type: "bar"; updated: boolean; bar: Bar }
   | { type: "status"; status: HubStatus }
   | { type: "clock"; server_time: DualTime; market: MarketState }
-  | { type: "analysis"; analysis: Analysis };
+  | { type: "analysis"; analysis: Analysis }
+  | { type: "prediction"; prediction: Prediction };
