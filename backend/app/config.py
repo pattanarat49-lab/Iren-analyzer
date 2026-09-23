@@ -24,10 +24,14 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Also accepts APCA_API_KEY_ID / APCA_API_SECRET_KEY, the names used in Alpaca's own docs and SDKs.
-    alpaca_api_key_id: str = Field(default="", validation_alias=AliasChoices("ALPACA_API_KEY_ID", "APCA_API_KEY_ID", "alpaca_api_key_id"))
+    # Also accepts APCA_API_KEY_ID / APCA_API_SECRET_KEY (the names in Alpaca's own docs and SDKs)
+    # and the short forms ALPACA_APIKEY / ALPACA_SECRETKEY.
+    alpaca_api_key_id: str = Field(
+        default="", validation_alias=AliasChoices("ALPACA_API_KEY_ID", "APCA_API_KEY_ID", "ALPACA_APIKEY", "alpaca_api_key_id")
+    )
     alpaca_api_secret_key: str = Field(
-        default="", validation_alias=AliasChoices("ALPACA_API_SECRET_KEY", "APCA_API_SECRET_KEY", "alpaca_api_secret_key")
+        default="",
+        validation_alias=AliasChoices("ALPACA_API_SECRET_KEY", "APCA_API_SECRET_KEY", "ALPACA_SECRETKEY", "alpaca_api_secret_key"),
     )
     # "iex" = free Basic plan (IEX exchange only); "sip" = Algo Trader Plus (consolidated tape).
     alpaca_stock_feed: Literal["iex", "sip"] = "iex"

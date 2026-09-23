@@ -206,7 +206,7 @@ host.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY` | – | Alpaca keys (server only) |
+| `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY` | – | Alpaca keys (server only). Also accepted: `APCA_API_KEY_ID`/`APCA_API_SECRET_KEY` and `ALPACA_APIKEY`/`ALPACA_SECRETKEY` |
 | `ALPACA_STOCK_FEED` | `iex` | `iex` (free) or `sip` (paid, full market) |
 | `ALPACA_HISTORY_FEED` | same as live | Feed for backfill; keep equal to the live feed so volume features match |
 | `DATA_SOURCE` | `auto` | `auto` = Alpaca if keys are set, else demo; or force `alpaca` / `demo` |

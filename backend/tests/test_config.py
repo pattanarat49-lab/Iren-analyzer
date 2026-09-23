@@ -52,3 +52,11 @@ def test_apca_env_names_are_accepted(monkeypatch):
     monkeypatch.setenv("APCA_API_SECRET_KEY", "secret-from-apca")
     s = Settings(_env_file=None)
     assert s.alpaca_api_key_id == "id-from-apca" and s.has_alpaca_keys
+
+
+def test_short_env_names_are_accepted(monkeypatch):
+    monkeypatch.setenv("ALPACA_APIKEY", "short-id")
+    monkeypatch.setenv("ALPACA_SECRETKEY", "short-secret")
+    s = Settings(_env_file=None)
+    assert (s.alpaca_api_key_id, s.alpaca_api_secret_key) == ("short-id", "short-secret")
+    assert s.resolved_source == "alpaca"
