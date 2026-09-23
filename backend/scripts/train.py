@@ -16,7 +16,7 @@ import sys
 import time
 
 from app import db
-from app.config import REPO_DIR, get_settings
+from app.config import get_settings
 from app.model.data import load_frames
 from app.model.features import HORIZONS
 from app.model.predictor import model_dir
@@ -39,7 +39,7 @@ def main() -> int:
     if n < 5000:
         print("Not enough history. Run `python -m scripts.backfill` first.", file=sys.stderr)
         return 1
-    out = model_dir(REPO_DIR, s.resolved_source)
+    out = model_dir(s.models_dir, s.resolved_source)
     peers = [x for x in s.all_symbols if x != s.primary_symbol.upper()]
     report = train_all(frames, s.primary_symbol.upper(), peers, out, s.resolved_source, args.horizons.split(","))
     for h, r in report["horizons"].items():

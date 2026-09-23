@@ -41,6 +41,14 @@ export function Dashboard() {
 
   const analysis = tf === 1 ? s.analysis : tfAnalysis;
   const pred = s.prediction?.horizons[horizon];
+  const gaugeProps = {
+    horizon,
+    onHorizon: setHorizon,
+    prediction: pred,
+    barTime: s.prediction?.bar_time,
+    serverTime: s.serverTime,
+    halted: s.quotes[primary]?.halted,
+  };
 
   return (
     <>
@@ -50,7 +58,7 @@ export function Dashboard() {
         <div className="grid gap-4 lg:grid-cols-12">
           <div className="space-y-4 lg:col-span-8">
             <div className="lg:hidden">
-              <ProbabilityGauge horizon={horizon} onHorizon={setHorizon} prediction={pred} />
+              <ProbabilityGauge {...gaugeProps} />
             </div>
             <Card
               title="กราฟราคา"
@@ -64,7 +72,7 @@ export function Dashboard() {
 
           <div className="space-y-4 lg:col-span-4">
             <div className="hidden lg:block">
-              <ProbabilityGauge horizon={horizon} onHorizon={setHorizon} prediction={pred} />
+              <ProbabilityGauge {...gaugeProps} />
             </div>
             <ContextPanel analysis={s.analysis} quotes={s.quotes} primary={primary} />
             <TrackRecordPanel horizon={horizon} />

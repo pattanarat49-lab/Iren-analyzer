@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import db
 from .analysis.engine import TIMEFRAMES, AnalysisEngine
-from .config import REPO_DIR, get_settings
+from .config import get_settings
 from .data.alpaca_rest import AlpacaRest
 from .data.demo import run_demo
 from .data.hub import MarketHub, run_alpaca
@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
     hub = MarketHub(s, engine, rest)
     analysis = AnalysisEngine(hub)
     primary = s.primary_symbol.upper()
-    analysis.predictor = Predictor(model_dir(REPO_DIR, s.resolved_source), primary, [x for x in s.all_symbols if x != primary])
+    analysis.predictor = Predictor(model_dir(s.models_dir, s.resolved_source), primary, [x for x in s.all_symbols if x != primary])
     await asyncio.to_thread(analysis.predictor.load)
     await analysis.reload_async()
     hub.add_bar_listener(analysis.on_bar)

@@ -1,7 +1,7 @@
 # IREN Probability Analyzer: Plan (Phase 0)
 
-This is the pre-coding proposal. No application code gets written until the data provider
-and stack below are approved.
+This was the pre-coding proposal. All six phases below have since been built; see the
+[README](../README.md) for how to run and deploy the app.
 
 ---
 

@@ -18,9 +18,9 @@ log = logging.getLogger(__name__)
 UTC = timezone.utc
 
 
-def model_dir(repo_dir: Path, source: str) -> Path:
+def model_dir(models_root: Path, source: str) -> Path:
     """Real and demo models are kept apart so simulated data can never drive real predictions."""
-    return repo_dir / "models" / source
+    return models_root / source
 
 
 class Predictor:

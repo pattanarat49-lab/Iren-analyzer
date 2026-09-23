@@ -1,0 +1,25 @@
+# Fly.io config for the backend. Copy to fly.toml, change `app`, then see README "Deploy".
+app = "iren-analyzer-api"          # must be unique on Fly.io
+primary_region = "sin"             # Singapore: closest to Thailand
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  CORS_ORIGINS = "https://your-frontend.vercel.app"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # The backend streams market data and runs the nightly retrain: it must never sleep.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[mounts]]
+  source = "iren_var"
+  destination = "/app/var"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "2gb"                   # nightly training on 2 years of 1-minute data needs ~1-2 GB

@@ -1,0 +1,31 @@
+# One-command local run:  docker compose up --build
+# Dashboard: http://localhost:3000   API: http://localhost:8000/api/status
+# Put ALPACA_API_KEY_ID / ALPACA_API_SECRET_KEY in ./.env (see .env.example); without keys the
+# app runs in demo mode with simulated prices.
+services:
+  backend:
+    build: ./backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8000:8000"
+    volumes:
+      - iren-var:/app/var
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_BACKEND_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  iren-var:

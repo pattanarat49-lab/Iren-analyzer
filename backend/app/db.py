@@ -178,9 +178,15 @@ def insert_predictions(engine: Engine, rows: list[dict]) -> int:
         return 0
     insert = _insert(engine)
     clean = [{**r, "made_at": _naive_utc(r["made_at"]), "target_at": _naive_utc(r["target_at"]), "status": "pending"} for r in rows]
+    stmt = (
+        insert(predictions)
+        .values(clean)
+        .on_conflict_do_nothing(index_elements=["made_at", "horizon", "source"])
+        .returning(predictions.c.id)
+    )
     with engine.begin() as conn:
-        res = conn.execute(insert(predictions).values(clean).on_conflict_do_nothing(index_elements=["made_at", "horizon", "source"]))
-    return res.rowcount or 0
+        # Count returned ids: rowcount is unreliable for multi-row inserts on some drivers.
+        return len(conn.execute(stmt).fetchall())
 
 
 def pending_predictions(engine: Engine, due_before: datetime, limit: int = 5000) -> list[dict]:

@@ -61,10 +61,25 @@ class Settings(BaseSettings):
     retrain_enabled: bool = True
     retrain_delay_min: int = 30
 
+    # Where trained models are stored (a persistent volume in deployments).
+    models_dir: Path = REPO_DIR / "models"
+
     @field_validator("database_url", mode="before")
     @classmethod
     def _default_db(cls, v: str | None) -> str:
-        return v or f"sqlite:///{REPO_DIR / 'data' / 'iren.db'}"
+        v = (v or "").strip()
+        if not v:
+            return f"sqlite:///{REPO_DIR / 'data' / 'iren.db'}"
+        # Hosting providers hand out postgres:// or postgresql:// URLs; use the psycopg 3 driver.
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                return "postgresql+psycopg://" + v[len(prefix):]
+        return v
+
+    @field_validator("models_dir", mode="before")
+    @classmethod
+    def _default_models(cls, v: str | Path | None) -> Path:
+        return Path(v) if v else REPO_DIR / "models"
 
     @field_validator("alpaca_history_feed", mode="before")
     @classmethod

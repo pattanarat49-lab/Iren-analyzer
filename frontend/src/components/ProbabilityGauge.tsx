@@ -1,7 +1,7 @@
 "use client";
 
-import { fmtPrice } from "@/lib/format";
-import type { Horizon, HorizonPrediction } from "@/lib/types";
+import { clockPart, datePart, fmtPrice } from "@/lib/format";
+import type { DualTime, Horizon, HorizonPrediction } from "@/lib/types";
 import { Card, Segmented } from "./ui";
 
 export type { Horizon };
@@ -58,12 +58,22 @@ export function ProbabilityGauge({
   horizon,
   onHorizon,
   prediction,
+  barTime,
+  serverTime,
+  halted,
 }: {
   horizon: Horizon;
   onHorizon: (h: Horizon) => void;
   prediction: HorizonPrediction | undefined;
+  /** Time of the bar the prediction was computed from. */
+  barTime?: DualTime;
+  serverTime?: DualTime | null;
+  halted?: boolean;
 }) {
   const ok = prediction?.available ? prediction : null;
+  const ageMin =
+    barTime && serverTime ? (Date.parse(serverTime.utc) - Date.parse(barTime.utc)) / 60_000 : 0;
+  const stale = ok != null && ageMin > 5;
   const pUp = ok ? ok.p_up : null;
   const up = pUp == null ? null : Math.round(pUp * 100);
 
@@ -87,6 +97,16 @@ export function ProbabilityGauge({
         </div>
       </div>
 
+      {halted && ok && (
+        <p className="mt-3 rounded-lg border border-down/50 bg-down/10 px-3 py-2 text-[13px] text-down">
+          ⏸ หุ้นถูกหยุดพักการซื้อขาย ค่าความน่าจะเป็นนี้อาจไม่สะท้อนสถานการณ์ปัจจุบัน
+        </p>
+      )}
+      {stale && barTime && (
+        <p className="mt-3 rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-ink-2">
+          🕒 คำนวณจากแท่งเทียนล่าสุดเมื่อ {datePart(barTime.bkk)} {clockPart(barTime.bkk).slice(0, 5)} น. (ไทย) ตัวเลขจะอัปเดตเมื่อมีการซื้อขายใหม่
+        </p>
+      )}
       {!ok && (
         <p className="mt-3 rounded-lg bg-surface-2 px-3 py-2 text-center text-xs text-ink-2">
           {prediction && !prediction.available ? prediction.reason : "กำลังโหลดโมเดล…"}
