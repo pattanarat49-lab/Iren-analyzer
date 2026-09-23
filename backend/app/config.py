@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///{REPO_DIR / 'data' / 'iren.db'}"
 
     primary_symbol: str = "IREN"
-    context_symbols: str = "CRWV,NBIS,NVDA,QQQ"
+    context_symbols: str = "CIFR,NBIS,CRWV,NVDA,QQQ"
     crypto_symbols: str = "BTC/USD"
 
     # "auto" = Alpaca when keys are present, otherwise the simulated demo feed.

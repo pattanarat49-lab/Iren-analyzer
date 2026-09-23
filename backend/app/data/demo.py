@@ -19,11 +19,12 @@ from .hub import MarketHub
 
 UTC = timezone.utc
 
-SEED_PRICES = {"IREN": 40.0, "CRWV": 120.0, "NBIS": 100.0, "NVDA": 180.0, "QQQ": 580.0, "BTC/USD": 110_000.0}
+SEED_PRICES = {"IREN": 40.0, "CIFR": 15.0, "CRWV": 120.0, "NBIS": 100.0, "NVDA": 180.0, "QQQ": 580.0, "BTC/USD": 110_000.0}
 # (beta to common factor, idiosyncratic vol) per minute
 PARAMS = {
     "IREN": (1.6, 0.0015),
     "CRWV": (1.5, 0.0015),
+    "CIFR": (1.7, 0.0018),
     "NBIS": (1.4, 0.0013),
     "NVDA": (1.0, 0.0007),
     "QQQ": (0.5, 0.0002),

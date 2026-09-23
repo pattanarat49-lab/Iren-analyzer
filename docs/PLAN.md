@@ -8,7 +8,7 @@ and stack below are approved.
 ## 1. Market-data provider
 
 Requirements: real-time US stock data over WebSocket (not 15-min delayed), extended hours,
-2+ years of 1-minute history for IREN, CRWV, NBIS, NVDA and QQQ, and BTC-USD.
+2+ years of 1-minute history for IREN, CIFR, NBIS, CRWV, NVDA and QQQ, and BTC-USD.
 
 | | **Alpaca** (recommended) | **Massive** (formerly Polygon.io) | **Finnhub** |
 |---|---|---|---|
@@ -35,8 +35,8 @@ Requirements: real-time US stock data over WebSocket (not 15-min delayed), exten
 - **CRWV** (CoreWeave) listed in **March 2025** and has only about 1.5 years of history.
 - **NBIS** (Nebius) resumed trading in **October 2024** after a long halt.
 - The models handle this. LightGBM treats missing peer features as NaN natively. Logistic
-  regression gets imputed values plus an "available" flag. IREN, NVDA, QQQ and BTC cover the
-  full 2+ years.
+  regression gets imputed values plus an "available" flag. IREN, CIFR (Cipher Mining, listed 2021),
+  NVDA, QQQ and BTC cover the full 2+ years.
 
 ---
 

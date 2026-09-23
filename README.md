@@ -53,7 +53,7 @@ Open these in your browser:
   closed), server time in US Eastern and Bangkok, the connection mode (`live`, `polling`,
   `demo` or `error`) and recent connection events.
 - http://localhost:8000/api/quotes shows the latest price, $ and % change vs previous close,
-  bid/ask for IREN, and the halt flag for IREN, CRWV, NBIS, NVDA, QQQ and BTC/USD.
+  bid/ask for IREN, and the halt flag for IREN, CIFR, NBIS, CRWV, NVDA, QQQ and BTC/USD.
 - http://localhost:8000/api/bars?symbol=IREN&limit=100 shows stored 1-minute bars.
 - http://localhost:8000/api/analysis shows every indicator with its value, a bullish / bearish /
   neutral signal and a one-sentence Thai explanation, plus correlation and relative strength vs

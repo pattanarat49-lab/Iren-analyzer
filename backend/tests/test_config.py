@@ -16,6 +16,6 @@ def test_alpaca_mode_with_keys(tmp_path):
 
 def test_symbols_and_public_has_no_secrets():
     s = Settings(_env_file=None, alpaca_api_key_id="k", alpaca_api_secret_key="supersecret")
-    assert s.stock_symbols == ["IREN", "CRWV", "NBIS", "NVDA", "QQQ"]
+    assert s.stock_symbols == ["IREN", "CIFR", "NBIS", "CRWV", "NVDA", "QQQ"]
     assert s.crypto_symbol_list == ["BTC/USD"]
     assert "supersecret" not in str(s.public())

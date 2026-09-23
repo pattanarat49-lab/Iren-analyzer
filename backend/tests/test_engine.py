@@ -42,7 +42,7 @@ async def test_engine_end_to_end(settings, engine):
     res = eng.compute(1)
     assert res["ready"] and res["bars_used"] == 300
     assert [i["key"] for i in res["indicators"]] == ["ema9", "ema21", "ema50", "vwap", "rsi14", "macd", "bb", "atr14", "rvol"]
-    assert {r["symbol"] for r in res["relative"]} == {"CRWV", "NBIS", "NVDA", "QQQ", "BTC/USD"}
+    assert {r["symbol"] for r in res["relative"]} == {"CIFR", "NBIS", "CRWV", "NVDA", "QQQ", "BTC/USD"}
     assert res["summary"]["overall"] in ("bullish", "bearish", "neutral")
 
     # A new bar is appended and triggers a recompute + broadcast.
