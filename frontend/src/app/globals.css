@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+/* Dark-mode design tokens. Chart colors were run through a colour-vision-deficiency validator
+   against the dark surface (see README "Chart colours"). */
+:root {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #232322;
+  --border: rgba(255, 255, 255, 0.1);
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --up: #0ca30c;
+  --down: #e66767;
+  --down-mark: #d03b3b;
+  --warn: #fab219;
+  --s1: #3987e5; /* EMA 9 */
+  --s2: #d95926; /* EMA 21 */
+  --s3: #199e70; /* EMA 50 */
+  --s4: #c98500; /* VWAP (dashed) */
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --color-warn: var(--warn);
+  --color-s1: var(--s1);
+  --color-s2: var(--s2);
+  --color-s3: var(--s3);
+  --color-s4: var(--s4);
+  --font-sans: system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", "Sarabun", "Leelawadee UI", "Thonburi", sans-serif;
+}
+
+html,
+body {
+  background: var(--page);
+  color: var(--ink);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

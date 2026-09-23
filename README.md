@@ -13,15 +13,17 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the data-provider comparison, the stack a
 |---|---|
 | 0. Plan | ✅ done |
 | 1. Live data layer (backend) | ✅ done |
-| 2. Indicators + analysis | ✅ ready for review |
-| 3. Dashboard UI | ⏳ next |
-| 4. Probability engine | — |
+| 2. Indicators + analysis | ✅ done |
+| 3. Dashboard UI | ✅ ready for review |
+| 4. Probability engine | ⏳ next |
 | 5. Track record + auto-retrain | — |
 | 6. Hardening + deploy guide | — |
 
 ---
 
-## Quick start (backend, Phase 1)
+## Quick start
+
+### 1. Backend (Python)
 
 You need **Python 3.11+**. On Windows, use `py` instead of `python3` and
 `.venv\Scripts\activate` instead of `source .venv/bin/activate`.
@@ -46,7 +48,20 @@ uvicorn app.main:app --reload --port 8000
 **No keys yet?** Skip step 1. The server starts in **demo mode** with simulated prices, which are
 stored in a separate `data/iren-demo.db`, so you can explore the app immediately.
 
-### Check that it works
+### 2. Frontend (dashboard)
+
+You need **Node.js 20+**. Open a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Then open **http://localhost:3000**, or `http://<your-computer's-IP>:3000` on your phone
+when it is on the same Wi-Fi.
+
+### Check the backend API directly
 Open these in your browser:
 
 - http://localhost:8000/api/status shows the market session (pre / regular / after-hours /
@@ -120,3 +135,29 @@ new bar and pushed over `/ws` as an `analysis` event.
 All indicators are **causal**: a test checks that computing on a prefix of the data gives
 identical values, so there is no look-ahead. RSI is verified against StockCharts' published
 example table.
+
+---
+
+## Dashboard (Phase 3)
+
+A mobile-first, dark-mode layout with Thai UI text. Indicator names stay in English.
+
+- **Header:** live price, $ and % change vs previous close, after-hours change, bid/ask, last
+  update in both ET and Bangkok time, market session and connection status (real-time, REST
+  fallback, demo, error), plus halt and demo banners.
+- **Probability gauge:** Up % vs Down % with a 5 min / 15 min / 1 hour / end-of-day selector.
+  It shows no numbers until the Phase 4 model exists; it never shows fake probabilities.
+- **Candlestick chart:** 1 / 5 / 15-minute candles with EMA 9/21/50, VWAP and Bollinger
+  overlays (toggle each), a volume histogram, and RSI and MACD panes. The live candle updates
+  tick by tick. The crosshair readout shows OHLC, RSI and MACD with the time in ET and Bangkok.
+- **Panels:** indicator signals with Thai explanations, context tickers (correlation and
+  relative strength), and track record (Phase 5).
+- **Permanent disclaimer** fixed to the bottom of every screen.
+- **Resilience:** the browser WebSocket reconnects with backoff and falls back to REST polling
+  every 10 s while the socket is down.
+
+### Chart colours
+Line colours come from a colour-vision-deficiency-validated palette on the dark surface:
+EMA 9 blue `#3987e5`, EMA 21 orange `#d95926`, EMA 50 aqua `#199e70` and VWAP amber
+`#c98500` (dashed). Bullish and bearish badges always pair colour with an icon (▲ ▼ ●) and a
+Thai label.
