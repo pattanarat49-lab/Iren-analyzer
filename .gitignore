@@ -20,7 +20,7 @@ out/
 next-env.d.ts
 
 # Data, models, reports
-data/*.db
+data/*.db*
 data/*.sqlite*
 models/*.pkl
 models/*.joblib
