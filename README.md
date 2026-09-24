@@ -145,7 +145,9 @@ Then start (or keep running) the server. It loads the models automatically. From
 under **Settings → Secrets and variables → Actions**: `ALPACA_API_KEY_ID` and
 `ALPACA_API_SECRET_KEY`. The bar database is kept in the Actions cache between runs; the trained
 models are attached to each run as a downloadable artifact. Start a run by hand from the
-**Actions** tab with **Run workflow**. This is a scheduled job, not a live server: for the live
+**Actions** tab with **Run workflow**. After each run, `.github/workflows/pages.yml` publishes a results page
+(`site/index.html`, which reads `backtest-latest.json`) to GitHub Pages. Turn it on once under
+**Settings → Pages → Source: GitHub Actions** (Pages on a private repository needs a paid GitHub plan). This is a scheduled job, not a live server: for the live
 dashboard see [Deploy to the internet](#6-deploy-to-the-internet).
 
 ## 5. Using the dashboard

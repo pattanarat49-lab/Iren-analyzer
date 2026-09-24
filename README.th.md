@@ -105,6 +105,8 @@ python -m scripts.backtest     # (ไม่บังคับ) สร้าง�
 - `ALPACA_API_KEY_ID`
 - `ALPACA_API_SECRET_KEY`
 
+หลังรันเสร็จแต่ละครั้ง ระบบจะอัปเดตหน้าเว็บผลลัพธ์บน GitHub Pages ให้เอง (ไฟล์ `site/index.html`) ต้องเปิดใช้ครั้งเดียวที่ **Settings → Pages → Source: GitHub Actions** (ถ้า repo เป็น private ต้องใช้ GitHub แบบเสียเงิน)
+
 สั่งรันทันทีได้ที่แท็บ **Actions → Daily backtest → Run workflow** โมเดลที่ train แล้วดาวน์โหลดได้จากหน้าผลการรันแต่ละครั้ง (Artifacts) งานนี้เป็นงานตามเวลา ไม่ใช่เว็บที่เปิดตลอด ถ้าต้องการหน้าเว็บสด ดูหัวข้อ "นำขึ้นอินเทอร์เน็ต"
 
 ## 6. วิธีอ่านหน้าจอ

@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IREN Edge Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --line: #dde1e7;
+  --grid: #e9ecf0;
+  --ink: #12151a;
+  --ink-2: #4a5160;
+  --ink-3: #6f7686;
+  --accent: #2a78d6;
+  --good: #1f7a3f;
+  --good-bg: #e3f3e8;
+  --warn: #8a5a00;
+  --warn-bg: #fbf0d6;
+  --mark: #5b6475;
+  --tip-bg: #12151a;
+  --tip-ink: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111317;
+    --surface: #1a1d23;
+    --line: #2c313a;
+    --grid: #252a32;
+    --ink: #eef0f4;
+    --ink-2: #b4bac6;
+    --ink-3: #8c93a1;
+    --accent: #3987e5;
+    --good: #5cc983;
+    --good-bg: #16301f;
+    --warn: #e7b44b;
+    --warn-bg: #33280f;
+    --mark: #a3abb9;
+    --tip-bg: #eef0f4;
+    --tip-ink: #12151a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111317;
+  --surface: #1a1d23;
+  --line: #2c313a;
+  --grid: #252a32;
+  --ink: #eef0f4;
+  --ink-2: #b4bac6;
+  --ink-3: #8c93a1;
+  --accent: #3987e5;
+  --good: #5cc983;
+  --good-bg: #16301f;
+  --warn: #e7b44b;
+  --warn-bg: #33280f;
+  --mark: #a3abb9;
+  --tip-bg: #eef0f4;
+  --tip-ink: #12151a;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "IBM Plex Sans Thai", "Noto Sans Thai", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+  padding-inline: 16px;
+  padding-block: 32px 48px;
+}
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 28px; }
+.mono, .num { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+h1, h2 { text-wrap: balance; margin: 0; line-height: 1.3; }
+h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 18px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+
+header { display: grid; gap: 10px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 20px; color: var(--ink-2); font-size: 13px; }
+.meta b { color: var(--ink); font-weight: 500; }
+
+.verdict {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 20px;
+  display: grid; gap: 6px;
+}
+.verdict strong { font-size: 17px; }
+
+.cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 820px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 440px) { .cards { grid-template-columns: 1fr; } }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: grid; gap: 10px; align-content: start;
+}
+.card-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.hz { font-size: 20px; font-weight: 600; }
+.hz small { display: block; font-size: 12px; font-weight: 400; color: var(--ink-3); }
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+}
+.pill.warn { color: var(--warn); background: var(--warn-bg); }
+.pill.good { color: var(--good); background: var(--good-bg); }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font-size: 13px; color: var(--ink-2); }
+.kv .num { color: var(--ink); text-align: right; }
+.kv .vs { color: var(--ink-3); }
+.reason { font-size: 12.5px; color: var(--ink-3); line-height: 1.5; }
+
+section { display: grid; gap: 12px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+
+/* chart */
+.chart-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--ink-2); margin-bottom: 8px; }
+.chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 18px; height: 3px; border-radius: 2px; display: inline-block; }
+.sw.good { background: var(--good); }
+.sw.neutral { background: var(--mark); }
+.chart-rows { display: grid; gap: 4px; }
+.crow { display: grid; grid-template-columns: 92px 1fr; gap: 12px; align-items: center; }
+.crow .lab { font-size: 13px; }
+.crow .lab b { display: block; font-weight: 600; }
+.crow .lab span { color: var(--ink-3); font-size: 12px; }
+.crow .plot { min-width: 0; }
+.crow svg { display: block; overflow: visible; max-width: 100%; }
+.crow svg text { fill: var(--ink-3); font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; }
+.crow svg .zero { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 3 3; }
+.crow svg .gridl { stroke: var(--grid); stroke-width: 1; }
+.crow svg .hit { fill: transparent; cursor: default; }
+.crow svg .hit:focus { outline: none; }
+.crow svg .hit:focus-visible + g .ci { stroke-width: 4; }
+.axis-note { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-3); padding-left: 104px; margin-top: 6px; gap: 12px; }
+@media (max-width: 520px) {
+  .crow { grid-template-columns: 1fr; gap: 0; }
+  .axis-note { padding-left: 0; }
+}
+.tip {
+  position: fixed; pointer-events: none; z-index: 10;
+  background: var(--tip-bg); color: var(--tip-ink);
+  font-size: 12.5px; line-height: 1.5; padding: 8px 10px; border-radius: 6px;
+  max-width: 260px;
+}
+
+/* table */
+.tscroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 13px; }
+th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+th { font-weight: 600; color: var(--ink-2); font-size: 12px; }
+tbody tr.best td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+tbody tr.base td { color: var(--ink-3); }
+tr.group td { border-bottom: none; padding-top: 16px; font-weight: 600; text-align: left; color: var(--ink); }
+
+.explain { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 28px; }
+@media (max-width: 700px) { .explain { grid-template-columns: 1fr; } }
+.explain div { display: grid; gap: 4px; }
+.explain h3 { font-size: 14px; margin: 0; font-weight: 600; }
+.explain p { font-size: 13.5px; color: var(--ink-2); }
+
+footer { font-size: 12.5px; color: var(--ink-3); display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 16px; }
+footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">IREN · ทดสอบย้อนหลังแบบ walk-forward · ข้อมูลจริงจาก Alpaca</div>
+    <h1>โมเดลทำนายทิศทางราคา IREN ดีกว่าการเดาแบบง่ายหรือไม่</h1>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <div class="verdict" id="verdict"></div>
+
+  <div class="cards" id="cards"></div>
+
+  <section>
+    <h2>ความต่างของ Brier score เทียบการเดาแบบง่าย</h2>
+    <p style="color:var(--ink-2);font-size:13.5px">จุดคือค่าเฉลี่ย เส้นคือช่วงความเชื่อมั่น 95% ถ้าทั้งเส้นอยู่ซ้ายของ 0 แปลว่าโมเดลทายความน่าจะเป็นได้ดีกว่าอย่างมีนัยสำคัญ แต่ละแถวใช้สเกลของตัวเอง เพราะช่วง "ถึงปิดตลาด" กว้างกว่าช่วงอื่นมาก</p>
+    <div class="panel">
+      <div class="chart-legend">
+        <span><i class="sw good"></i>ทั้งช่วงต่ำกว่า 0 (Brier ดีกว่า)</span>
+        <span><i class="sw neutral"></i>ช่วงคร่อม 0 (แยกไม่ออกจากการเดา)</span>
+      </div>
+      <div class="chart-rows" id="chart"></div>
+      <div class="axis-note"><span>← โมเดลดีกว่า</span><span>การเดาแบบง่ายดีกว่า →</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>ตัวเลขทั้งหมด</h2>
+    <div class="panel tscroll">
+      <table id="table">
+        <thead>
+          <tr>
+            <th>ช่วงเวลา</th><th>โมเดล</th><th>ความแม่นยำ</th><th>Brier</th><th>ต่างจาก baseline</th><th>95% CI</th><th>AUC</th><th>สัญญาณมั่นใจ</th><th>ถูกเมื่อมั่นใจ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>อ่านผลอย่างไร</h2>
+    <div class="explain">
+      <div><h3>Baseline คืออะไร</h3><p>การเดาแบบง่าย ใช้สัดส่วนที่ราคาเคยขึ้นในช่วงข้อมูลที่ใช้ฝึก แล้วทายค่านั้นทุกครั้ง โมเดลที่ดีต้องชนะวิธีนี้ให้ได้</p></div>
+      <div><h3>Brier score</h3><p>วัดความผิดพลาดของความน่าจะเป็น ยิ่งต่ำยิ่งดี 0.25 คือการทาย 50/50 ตลอด ความต่างที่เห็นอยู่ระดับ 0.001 ซึ่งเล็กมาก</p></div>
+      <div><h3>เกณฑ์ EDGE</h3><p>ต้องมีวันทดสอบอย่างน้อย 20 วัน Brier ต้องดีกว่า baseline ทั้งช่วงความเชื่อมั่น 95% และความแม่นยำต้องสูงกว่า baseline ครบทั้ง 3 ข้อ</p></div>
+      <div><h3>สัญญาณมั่นใจ</h3><p>สัดส่วนครั้งที่โมเดลให้ความน่าจะเป็น ≥ 0.55 หรือ ≤ 0.45 และความแม่นยำเฉพาะครั้งเหล่านั้น จำนวนครั้งน้อย จึงยังเชื่อถือไม่ได้มาก</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <div id="foot"></div>
+    <div>ใช้เพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำการลงทุน ผลในอดีตไม่รับประกันอนาคต ยังไม่ได้หักค่าธรรมเนียมและ slippage</div>
+    <div>รายงานฉบับเต็มอัปเดตทุกวันทำการที่ <a href="https://github.com/pattanarat49-lab/Iren-analyzer/blob/claude/iren-probability-analyzer-fs74vv/docs/backtest-latest.md">docs/backtest-latest.md</a></div>
+  </footer>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<script>
+
+function compact(d) {
+  return {
+    generated_at: d.generated_at, data_start: d.data_start, data_end: d.data_end,
+    h: Object.entries(d.horizons).map(([key, v]) => {
+      const m = v.metrics;
+      return { key, n: m.n, days: m.n_days, up: m.up_rate, base: m.baseline, best: m.best_model,
+               edge: m.edge, reason: m.edge_reason, models: m.models };
+    }),
+  };
+}
+let DATA;
+fetch("backtest-latest.json", { cache: "no-store" })
+  .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then((d) => { DATA = compact(d); render(); })
+  .catch(() => {
+    document.getElementById("verdict").innerHTML =
+      "<strong>โหลดผลล่าสุดไม่สำเร็จ</strong><p>ไม่พบไฟล์ backtest-latest.json ลองรีเฟรชหน้านี้อีกครั้ง หรือรอให้งานรายวันบน GitHub Actions รันเสร็จ</p>";
+  });
+
+function render() {
+const TH = { "5m": "5 นาที", "15m": "15 นาที", "1h": "1 ชั่วโมง", "eod": "ถึงปิดตลาด" };
+const pct = (x) => (x * 100).toFixed(1) + "%";
+const f4 = (x) => x.toFixed(4);
+const sgn = (x) => (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toFixed(5);
+const bkk = (iso) => new Date(iso).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" });
+const day = (iso) => new Date(iso).toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "medium" });
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+
+// Header meta
+document.getElementById("meta").innerHTML =
+  `<span>อัปเดต <b>${bkk(DATA.generated_at)}</b></span>` +
+  `<span>ข้อมูล <b>${day(DATA.data_start)} – ${day(DATA.data_end)}</b></span>` +
+  `<span>ทดสอบ <b class="num">${DATA.h[0].days}</b> วันทำการ</span>`;
+
+// Overall verdict
+const edges = DATA.h.filter((h) => h.edge);
+document.getElementById("verdict").innerHTML = edges.length
+  ? `<strong><span class="pill good">✓ EDGE</span> มี ${edges.length} ช่วงเวลาที่ผ่านเกณฑ์: ${edges.map((h) => TH[h.key]).join(", ")}</strong><p style="color:var(--ink-2)">ความได้เปรียบที่ผ่านเกณฑ์ยังเล็กมากและยังไม่หักค่าธรรมเนียม ควรดูต่ออีกหลายวันว่าผลคงที่หรือไม่</p>`
+  : `<strong><span class="pill warn">⚠ ยังไม่มี edge</span>&nbsp; ไม่มีช่วงเวลาไหนพิสูจน์ได้ว่าดีกว่าการเดาแบบง่าย</strong><p style="color:var(--ink-2)">ช่วง 5 นาทีมี Brier ดีกว่าอย่างมีนัยสำคัญ แต่ความแม่นยำต่ำกว่า baseline เล็กน้อย จึงไม่ผ่านเกณฑ์ ผลแบบนี้ปกติสำหรับการทำนายราคาระยะสั้น</p>`;
+
+// Cards
+const cards = document.getElementById("cards");
+DATA.h.forEach((h) => {
+  const m = h.models[h.best];
+  const c = el("div", "card");
+  c.innerHTML = `
+    <div class="card-top">
+      <div class="hz">${TH[h.key]}<small>โมเดลที่ดีที่สุด: ${h.best}</small></div>
+      ${h.edge ? '<span class="pill good">✓ EDGE</span>' : '<span class="pill warn">⚠ ไม่มี edge</span>'}
+    </div>
+    <div class="kv">
+      <span>ความแม่นยำ</span><span class="num">${pct(m.accuracy)}</span>
+      <span class="vs">baseline</span><span class="num vs">${pct(h.base.accuracy)}</span>
+      <span>Brier</span><span class="num">${f4(m.brier)}</span>
+      <span class="vs">baseline</span><span class="num vs">${f4(h.base.brier)}</span>
+    </div>
+    <div class="reason">${h.reason}</div>`;
+  cards.appendChild(c);
+});
+
+// Chart: one row per horizon, each with its own symmetric scale around 0
+const chart = document.getElementById("chart");
+const tip = document.getElementById("tip");
+const H = 64, PAD = 30;
+function niceMax(v) {
+  const e = Math.pow(10, Math.floor(Math.log10(v)));
+  for (const k of [1, 2, 2.5, 5, 10]) if (k * e >= v) return k * e;
+  return 10 * e;
+}
+function showTip(ev, html) {
+  tip.innerHTML = html; tip.hidden = false;
+  const r = tip.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - 14;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function drawChart() {
+  chart.innerHTML = "";
+  DATA.h.forEach((h) => {
+    const m = h.models[h.best];
+    const [lo, hi] = m.brier_diff_ci;
+    const M = niceMax(Math.max(Math.abs(lo), Math.abs(hi)) * 1.1);
+    const good = hi < 0;
+    const color = good ? "var(--good)" : "var(--mark)";
+    const row = el("div", "crow");
+    row.innerHTML = `<div class="lab"><b>${TH[h.key]}</b><span>${h.best}</span></div><div class="plot"></div>`;
+    chart.appendChild(row);
+    const plot = row.querySelector(".plot");
+    const W = Math.max(240, plot.clientWidth);
+    const x = (v) => PAD + ((v + M) / (2 * M)) * (W - 2 * PAD);
+    const ticks = W < 420 ? [-M, 0, M] : [-M, -M / 2, 0, M / 2, M];
+    const cy = 26;
+    plot.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${TH[h.key]}: ต่างจาก baseline ${sgn(m.brier_diff)}, ช่วง 95% ${sgn(lo)} ถึง ${sgn(hi)}">
+        ${ticks.map((t) => `<line class="${t === 0 ? "zero" : "gridl"}" x1="${x(t)}" x2="${x(t)}" y1="6" y2="${cy + 14}"/>`).join("")}
+        ${ticks.map((t) => `<text x="${x(t)}" y="${H - 6}" text-anchor="middle">${t === 0 ? "0" : sgn(t).replace(/0+$/, "")}</text>`).join("")}
+        <rect class="hit" x="${x(lo) - 14}" y="4" width="${x(hi) - x(lo) + 28}" height="${cy + 12}" tabindex="0"/>
+        <g pointer-events="none">
+          <line class="ci" x1="${x(lo)}" x2="${x(hi)}" y1="${cy}" y2="${cy}" stroke="${color}" stroke-width="3" stroke-linecap="round"/>
+          <line x1="${x(lo)}" x2="${x(lo)}" y1="${cy - 7}" y2="${cy + 7}" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
+          <line x1="${x(hi)}" x2="${x(hi)}" y1="${cy - 7}" y2="${cy + 7}" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="${x(m.brier_diff)}" cy="${cy}" r="6" fill="${color}" stroke="var(--surface)" stroke-width="2"/>
+        </g>
+      </svg>`;
+    const html = `<b>${TH[h.key]} · ${h.best}</b><br>ต่างจาก baseline <span class="num">${sgn(m.brier_diff)}</span><br>95% CI <span class="num">${sgn(lo)} ถึง ${sgn(hi)}</span><br>${good ? "ทั้งช่วงต่ำกว่า 0: Brier ดีกว่า" : "ช่วงคร่อม 0: แยกไม่ออกจากการเดา"}`;
+    const hit = plot.querySelector(".hit");
+    hit.addEventListener("mousemove", (ev) => showTip(ev, html));
+    hit.addEventListener("mouseleave", () => (tip.hidden = true));
+    hit.addEventListener("focus", () => { const r = hit.getBoundingClientRect(); showTip({ clientX: r.left + r.width / 2, clientY: r.bottom }, html); });
+    hit.addEventListener("blur", () => (tip.hidden = true));
+  });
+}
+drawChart();
+let rt;
+addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(drawChart, 120); });
+
+// Table
+const tb = document.querySelector("#table tbody");
+DATA.h.forEach((h) => {
+  tb.insertAdjacentHTML("beforeend", `<tr class="group"><td colspan="9">${TH[h.key]} · ทดสอบ <span class="num">${h.n.toLocaleString("en-US")}</span> จุด · ราคาขึ้น <span class="num">${pct(h.up)}</span> ของเวลา</td></tr>`);
+  tb.insertAdjacentHTML("beforeend", `<tr class="base"><td></td><td>baseline</td><td class="num">${pct(h.base.accuracy)}</td><td class="num">${f4(h.base.brier)}</td><td class="num">–</td><td class="num">–</td><td class="num">–</td><td class="num">–</td><td class="num">–</td></tr>`);
+  Object.entries(h.models).forEach(([name, m]) => {
+    const best = name === h.best;
+    tb.insertAdjacentHTML("beforeend", `<tr class="${best ? "best" : ""}"><td></td><td>${name}${best ? " ★" : ""}</td>
+      <td class="num">${pct(m.accuracy)}</td><td class="num">${f4(m.brier)}</td><td class="num">${sgn(m.brier_diff)}</td>
+      <td class="num">[${sgn(m.brier_diff_ci[0])}, ${sgn(m.brier_diff_ci[1])}]</td><td class="num">${m.auc.toFixed(3)}</td>
+      <td class="num">${pct(m.confident_share)}</td><td class="num">${m.confident_accuracy == null ? "–" : pct(m.confident_accuracy)}</td></tr>`);
+  });
+});
+
+document.getElementById("foot").textContent =
+  `ทดสอบแบบ walk-forward 5 ช่วง บนครึ่งหลังของข้อมูล · baseline = สัดส่วนราคาขึ้นในช่วงฝึก · ★ = โมเดลที่ Brier ต่ำสุด`;
+}
+</script>
+</body>
+</html>
