@@ -14,6 +14,7 @@ on:
     paths:
       - site/**
       - docs/backtest-latest.json
+      - docs/day-review.json
       - backend/scripts/live_snapshot.py
       - .github/workflows/pages.yml
   workflow_dispatch:
@@ -94,6 +95,7 @@ jobs:
         run: |
           cp site/index.html _site/
           cp docs/backtest-latest.json _site/
+          if [ -f docs/day-review.json ]; then cp docs/day-review.json _site/; fi
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

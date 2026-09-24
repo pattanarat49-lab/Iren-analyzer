@@ -103,6 +103,9 @@ class CalibratedModel:
     estimator: object
     calibrator: object | None = None
     calibration: str = "none"
+    # Added after calibration: moves the forecast level from the calibration slice's up-rate to
+    # the whole training window's (see fit_calibrated). 0 for models saved before it existed.
+    shift: float = 0.0
 
     def raw_proba(self, X: pd.DataFrame) -> np.ndarray:
         return self.estimator.predict_proba(X[self.features])[:, 1]
@@ -117,7 +120,7 @@ class CalibratedModel:
             p = self.calibrator.predict(raw)
         else:  # platt
             p = self.calibrator.predict_proba(_logit(raw).reshape(-1, 1))[:, 1]
-        return np.clip(p, *P_CLIP)
+        return np.clip(p + getattr(self, "shift", 0.0), *P_CLIP)
 
     def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
         return self.calibrate(self.raw_proba(X))
@@ -155,8 +158,22 @@ class CalibratedModel:
         return out
 
 
-def fit_calibrated(kind: str, X: pd.DataFrame, y: np.ndarray, target_t: np.ndarray, features: list[str], cal_frac: float = 0.2) -> CalibratedModel:
-    """Fit on the older part of the window, calibrate on the most recent `cal_frac` (purged)."""
+def fit_calibrated(
+    kind: str,
+    X: pd.DataFrame,
+    y: np.ndarray,
+    target_t: np.ndarray,
+    features: list[str],
+    cal_frac: float = 0.2,
+    recentre: bool = False,
+) -> CalibratedModel:
+    """Fit on the older part of the window, calibrate on the most recent `cal_frac` (purged).
+
+    With `recentre`, the calibrated level is moved from the calibration slice's up-rate to the
+    whole window's. For long horizons the slice holds few independent outcomes (about 50 days
+    for end-of-day), so its up-rate is mostly noise from the latest regime; in the walk-forward
+    comparison recentring lowered the Brier score for 1h and end-of-day but not for 5m/15m.
+    """
     n = len(X)
     cal_start_i = int(n * (1 - cal_frac))
     cal_start_t = X.index[cal_start_i]
@@ -170,6 +187,8 @@ def fit_calibrated(kind: str, X: pd.DataFrame, y: np.ndarray, target_t: np.ndarr
     model = CalibratedModel(kind, features, est)
     Xc, yc = X.iloc[cal_start_i:], y[cal_start_i:]
     model.fit_calibrator(model.raw_proba(Xc), yc)
+    if recentre and model.calibrator is not None:
+        model.shift = float(y.mean() - yc.mean())
     return model
 
 
@@ -182,7 +201,9 @@ def _day_of(index: pd.DatetimeIndex) -> np.ndarray:
     return index.tz_convert("America/New_York").tz_localize(None).normalize().values
 
 
-def walk_forward(data: pd.DataFrame, features: list[str], n_folds: int = 5, test_frac: float = 0.5, min_train: int = 2000) -> pd.DataFrame:
+def walk_forward(
+    data: pd.DataFrame, features: list[str], n_folds: int = 5, test_frac: float = 0.5, min_train: int = 2000, recentre: bool = False
+) -> pd.DataFrame:
     """Out-of-sample predictions for every model kind plus the naive baseline.
 
     `data` must contain the feature columns, `y`, `fwd_ret` and `target_t`, sorted by time.
@@ -215,7 +236,7 @@ def walk_forward(data: pd.DataFrame, features: list[str], n_folds: int = 5, test
         out["p_baseline"] = base_rate
         for kind in MODEL_KINDS:
             try:
-                m = fit_calibrated(kind, train, y[train_mask], target_ns[train_mask], features)
+                m = fit_calibrated(kind, train, y[train_mask], target_ns[train_mask], features, recentre=recentre)
                 out[f"p_{kind}"] = m.predict_proba(test)
             except ValueError as e:
                 log.warning("fold %d %s failed: %s", bi, kind, e)
@@ -337,6 +358,12 @@ class HorizonResult:
     meta: dict = field(default_factory=dict)
 
 
+def recentre_level(horizon: str) -> bool:
+    """Recentre calibration for horizons of an hour or longer (few independent outcomes)."""
+    minutes = HORIZONS[horizon]
+    return minutes is None or minutes >= 60
+
+
 def prepare(frames: dict[str, pd.DataFrame], primary: str, peers: list[str]) -> pd.DataFrame:
     return build_features(frames, primary, peers)
 
@@ -357,12 +384,14 @@ def train_horizon(feats: pd.DataFrame, primary_frame: pd.DataFrame, horizon: str
     }
     if len(data) < 5000:
         return HorizonResult(horizon, {"error": f"ข้อมูลน้อยเกินไป ({len(data)} แถว)"}, None, meta)
-    oos = walk_forward(data, features, n_folds=n_folds)
+    recentre = recentre_level(horizon)
+    meta["recentre"] = recentre
+    oos = walk_forward(data, features, n_folds=n_folds, recentre=recentre)
     if oos.empty:
         return HorizonResult(horizon, {"error": "walk-forward ไม่มี fold ที่ใช้ได้"}, None, meta)
     metrics = evaluate(oos)
     target_ns = data["target_t"].values.astype("datetime64[ns]").astype(np.int64)
-    final = fit_calibrated(metrics["best_model"], data, data["y"].to_numpy().astype(int), target_ns, features)
+    final = fit_calibrated(metrics["best_model"], data, data["y"].to_numpy().astype(int), target_ns, features, recentre=recentre)
     return HorizonResult(horizon, metrics, final, meta)
 
 

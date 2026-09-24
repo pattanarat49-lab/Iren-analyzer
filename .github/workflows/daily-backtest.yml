@@ -1,7 +1,8 @@
 name: Daily backtest
 
 # Every US trading day after the close: download new Alpaca bars, retrain the models,
-# re-run the walk-forward backtest and commit the report to docs/backtest-latest.md.
+# re-run the walk-forward backtest and commit the report to docs/backtest-latest.md. Before
+# retraining, the day just ended is scored with the models that were live (docs/day-review.json).
 #
 # Needs two repository secrets (Settings → Secrets and variables → Actions → Repository secrets):
 #   ALPACA_API_KEY_ID, ALPACA_API_SECRET_KEY
@@ -72,6 +73,19 @@ jobs:
           path: data/
           key: iren-db-${{ github.run_id }}
 
+      # Score today with the models that were live today (saved by the previous run), before
+      # they are replaced, so the review is out of sample.
+      - name: Restore previous models
+        uses: actions/cache/restore@v4
+        with:
+          path: models/
+          key: iren-models-${{ github.run_id }}
+          restore-keys: iren-models-
+
+      - name: Review the day
+        working-directory: backend
+        run: python -m scripts.review_day --out ../docs/day-review.json
+
       - name: Train
         working-directory: backend
         run: python -m scripts.train
@@ -107,7 +121,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/backtest-latest.md docs/backtest-latest.json
+          git add docs/backtest-latest.md docs/backtest-latest.json docs/day-review.json
           if git diff --cached --quiet; then
             echo "Report unchanged."
             exit 0

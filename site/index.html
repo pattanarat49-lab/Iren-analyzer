@@ -240,7 +240,7 @@ footer a { color: var(--accent); }
 <body>
 <div class="wrap">
   <section class="live" id="live">
-    <div class="eyebrow">IREN · ข้อมูลจริงจาก Alpaca · อัปเดตอัตโนมัติทุกประมาณ 5–10 นาที</div>
+    <div class="eyebrow">IREN · ข้อมูลจริงจาก Alpaca · อัปเดตอัตโนมัติทุกประมาณ 15–20 นาทีขณะตลาดเปิด</div>
     <div class="live-top">
       <div class="px"><span class="sym">IREN</span><span class="price" id="lv-price">–</span><span class="chg" id="lv-chg"></span></div>
       <div class="live-meta"><span id="lv-sess"></span><span id="lv-time">กำลังโหลดข้อมูลล่าสุด…</span></div>
@@ -261,6 +261,15 @@ footer a { color: var(--accent); }
         <thead><tr><th>ช่วงเวลา</th><th>ตรวจแล้ว</th><th>รอผล</th><th>ทายถูก</th><th>การเดาแบบง่ายถูก</th><th>Brier เทียบ baseline</th><th>สรุป</th></tr></thead>
         <tbody><tr><td colspan="7" style="text-align:left;color:var(--ink-3)">ยังไม่มีข้อมูล</td></tr></tbody>
       </table></div>
+    </div>
+    <div class="panel" id="dr">
+      <h2 style="margin-bottom:4px">ตรวจผลวันซื้อขายล่าสุด ทุกนาที</h2>
+      <p id="dr-sub" style="color:var(--ink-2);font-size:13.5px;margin-bottom:10px">หลังตลาดปิด ระบบนำโมเดลที่ใช้จริงวันนั้นมาทายทุกนาทีของช่วงตลาดเปิด แล้วเทียบกับราคาจริง ก่อนจะเทรนโมเดลใหม่ ผล 1 วันยังสรุปอะไรไม่ได้ ใช้ดูแนวโน้มและจุดผิดพลาด</p>
+      <div class="tscroll"><table id="dr-table" style="min-width:600px">
+        <thead><tr><th>ช่วงเวลา</th><th>จำนวนนาที</th><th>ราคาขึ้นจริง</th><th>โมเดลทายเฉลี่ย</th><th>ทายถูก</th><th>การเดาแบบง่ายถูก</th><th>Brier เทียบ baseline</th></tr></thead>
+        <tbody><tr><td colspan="7" style="text-align:left;color:var(--ink-3)">ยังไม่มีข้อมูล</td></tr></tbody>
+      </table></div>
+      <div id="dr-worst" style="font-size:13px;color:var(--ink-2);margin-top:10px"></div>
     </div>
   </section>
 
@@ -625,6 +634,42 @@ document.getElementById("foot").textContent =
   setInterval(load, 60_000);
   let rt;
   addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => last && last.ok && spark(last), 150); });
+})();
+</script>
+
+<script>
+(() => {
+  const TH = { "5m": "5 นาที", "15m": "15 นาที", "1h": "1 ชั่วโมง", "eod": "ถึงปิดตลาด" };
+  const pct = (x) => (x * 100).toFixed(1) + "%";
+  fetch("day-review.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((d) => {
+    const r = d && d.reviews && d.reviews[0];
+    if (!r) return;
+    const day = new Date(r.day + "T12:00:00Z").toLocaleDateString("th-TH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    const pr = r.price || {};
+    const chg = pr.change_pct == null ? "" : ` (${pr.change_pct > 0 ? "+" : ""}${pr.change_pct.toFixed(2)}%)`;
+    document.getElementById("dr-sub").innerHTML =
+      `<b>${day}</b> · IREN ปิดวันก่อน <span class="num">${pr.prev_close?.toFixed(2) ?? "–"}</span> → เปิด <span class="num">${pr.open?.toFixed(2) ?? "–"}</span>, ต่ำสุด <span class="num">${pr.low?.toFixed(2) ?? "–"}</span>, สูงสุด <span class="num">${pr.high?.toFixed(2) ?? "–"}</span>, ปิด <span class="num">${pr.close?.toFixed(2) ?? "–"}</span>${chg}<br>` +
+      document.getElementById("dr-sub").innerHTML;
+    const rows = Object.keys(TH).filter((h) => r.horizons[h]).map((h) => {
+      const e = r.horizons[h];
+      const diff = e.brier - e.baseline_brier;
+      const tag = diff < 0 ? '<span class="pill good">ดีกว่า</span>' : '<span class="pill warn">แย่กว่า</span>';
+      return `<tr><td>${TH[h]}</td><td class="num">${e.n}</td><td class="num">${pct(e.up_rate)}</td>
+        <td class="num">${pct(e.mean_p)} <small style="color:var(--ink-3)">(${pct(e.min_p)}–${pct(e.max_p)})</small></td>
+        <td class="num">${pct(e.hit_rate)}</td><td class="num">${pct(e.baseline_hit_rate)}</td>
+        <td class="num">${diff > 0 ? "+" : "−"}${Math.abs(diff).toFixed(4)} ${tag}</td></tr>`;
+    });
+    document.querySelector("#dr-table tbody").innerHTML = rows.join("");
+    // The hour where each horizon did worst, as a pointer for what went wrong.
+    const worst = Object.keys(TH).filter((h) => r.horizons[h]).map((h) => {
+      const hrs = (r.horizons[h].by_hour || []).filter((b) => b.n >= 20);
+      if (!hrs.length) return "";
+      const w = hrs.reduce((a, b) => (b.hit_rate < a.hit_rate ? b : a));
+      const dir = w.up_rate > 0.5 ? "ราคาขึ้น" : "ราคาลง";
+      return `<li>${TH[h]}: ช่วง ${w.hour}:00–${w.hour}:59 ET ทายถูก ${pct(w.hit_rate)} (${dir} ${pct(Math.max(w.up_rate, 1 - w.up_rate))} ของเวลา แต่โมเดลทายขึ้นเฉลี่ย ${pct(w.mean_p)})</li>`;
+    }).join("");
+    if (worst) document.getElementById("dr-worst").innerHTML = `<b>ชั่วโมงที่พลาดมากที่สุด</b><ul style="margin:4px 0 0;padding-left:20px">${worst}</ul>`;
+  }).catch(() => {});
 })();
 </script>
 </body>

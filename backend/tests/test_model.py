@@ -180,3 +180,20 @@ def test_expected_move_scales_with_sqrt_time():
     eod = expected_move(40.0, 0.1, "eod", 30.0)
     assert eod["minutes"] == 30
     assert expected_move(40.0, float("nan"), "5m", None) is None
+
+
+def test_recentre_moves_level_to_whole_window_up_rate():
+    from app.model.train import recentre_level
+
+    assert not recentre_level("5m") and not recentre_level("15m")
+    assert recentre_level("1h") and recentre_level("eod")
+    frames = make_frames(10, momentum=0.0, seed=3)
+    feats = build_features(frames, "IREN", PEERS)
+    data = feats.join(build_labels(feats, frames["IREN"], "1h")).dropna(subset=["y"])
+    y = data["y"].to_numpy().astype(int)
+    tns = data["target_t"].values.astype("datetime64[ns]").astype(np.int64)
+    plain = fit_calibrated("logreg", data, y, tns, feature_columns(feats))
+    moved = fit_calibrated("logreg", data, y, tns, feature_columns(feats), recentre=True)
+    cal_start = int(len(y) * 0.8)
+    assert moved.shift == pytest.approx(y.mean() - y[cal_start:].mean())
+    assert plain.shift == 0.0

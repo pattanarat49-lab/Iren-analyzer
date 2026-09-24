@@ -150,7 +150,8 @@ models are attached to each run as a downloadable artifact. Start a run by hand 
 **Settings → Pages → Source: GitHub Actions** (Pages on a private repository needs a paid GitHub plan).
 The same workflow also runs every 5 minutes on US trading days: `scripts/live_snapshot.py` fetches the
 newest bars and quotes and scores them with the saved models, so the page shows the current price,
-indicator signals and P(up) per horizon. It is near-real-time (GitHub may start scheduled runs
+indicator signals and P(up) per horizon. It is near-real-time: GitHub throttles scheduled runs, so in practice the page refreshes about every
+15–20 minutes (runs may also start
 late); for tick-by-tick updates run the full app. This is a scheduled job, not a live server: for the live
 dashboard see [Deploy to the internet](#6-deploy-to-the-internet).
 
