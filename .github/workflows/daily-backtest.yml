@@ -3,8 +3,9 @@ name: Daily backtest
 # Every US trading day after the close: download new Alpaca bars, retrain the models,
 # re-run the walk-forward backtest and commit the report to docs/backtest-latest.md.
 #
-# Needs two repository secrets (Settings → Secrets and variables → Actions):
+# Needs two repository secrets (Settings → Secrets and variables → Actions → Repository secrets):
 #   ALPACA_API_KEY_ID, ALPACA_API_SECRET_KEY
+# (ALPACA_APIKEY / ALPACA_SECRETKEY and APCA_API_KEY_ID / APCA_API_SECRET_KEY also work.)
 # Scheduled runs only fire from the default branch. Use "Run workflow" to start one by hand.
 
 on:
@@ -24,15 +25,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID }}
-      ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY }}
+      ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID || secrets.ALPACA_APIKEY || secrets.APCA_API_KEY_ID }}
+      ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY || secrets.ALPACA_SECRETKEY || secrets.APCA_API_SECRET_KEY }}
     steps:
       - uses: actions/checkout@v5
 
       - name: Check secrets
         run: |
           if [ -z "$ALPACA_API_KEY_ID" ] || [ -z "$ALPACA_API_SECRET_KEY" ]; then
-            echo "::error::Add ALPACA_API_KEY_ID and ALPACA_API_SECRET_KEY under Settings → Secrets and variables → Actions."
+            [ -z "$ALPACA_API_KEY_ID" ] && echo "::error::Missing secret ALPACA_API_KEY_ID"
+            [ -z "$ALPACA_API_SECRET_KEY" ] && echo "::error::Missing secret ALPACA_API_SECRET_KEY"
+            echo "::error::Add them as Repository secrets under Settings → Secrets and variables → Actions (not Variables, not Environment/Codespaces/Dependabot secrets)."
             exit 1
           fi
 
@@ -54,11 +57,12 @@ jobs:
           restore-keys: iren-db-
 
       - name: Backfill
+        id: backfill
         working-directory: backend
         run: python -m scripts.backfill
 
       - name: Save bar database
-        if: always()
+        if: always() && steps.backfill.outcome != 'skipped'
         uses: actions/cache/save@v4
         with:
           path: data/
