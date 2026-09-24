@@ -130,6 +130,20 @@ def test_calibration_output_is_probability():
     assert set(c) == set(feature_columns(feats))
 
 
+def test_blend_calibration_avoids_extreme_probabilities():
+    from app.model.train import CalibratedModel
+
+    rng = np.random.default_rng(0)
+    raw = rng.uniform(0.3, 0.7, 5000)
+    y = (rng.uniform(size=5000) < 0.3 + 0.4 * raw).astype(int)  # weak, noisy signal
+    m = CalibratedModel("logreg", [], None)
+    m.fit_calibrator(raw, y)
+    assert m.calibration == "blend"
+    p = m.calibrate(np.array([raw.min(), 0.4, 0.5, 0.6, raw.max()]))  # true rates 0.42..0.58
+    assert np.all(np.diff(p) >= 0)  # still monotone
+    assert 0.25 < p[0] and p[-1] < 0.75  # no 0.01 / 0.99 from sparse isotonic tails
+
+
 def test_reliability_bins():
     p = np.array([0.1, 0.12, 0.8, 0.85])
     y = np.array([0, 0, 1, 1])

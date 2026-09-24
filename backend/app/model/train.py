@@ -6,7 +6,11 @@ For each horizon:
    before the block starts (purging by label end time, so overlapping horizons never leak).
    Nothing is shuffled.
 2. Inside every training window, the most recent 20 % is held out to fit the probability
-   calibrator (isotonic, or Platt scaling when data is small), again purged by label time.
+   calibrator, again purged by label time: the average of isotonic regression (fitted on
+   quantile-bin averages) and Platt scaling, or Platt alone when data is small. Plain isotonic
+   overfits the sparse tails and produced 0.01 / 0.99 forecasts that came true far less often
+   than claimed; the blend scored a lower out-of-sample Brier on every horizon and model in the
+   walk-forward comparison and keeps forecasts away from those extremes.
 3. Out-of-sample predictions are compared with a naive baseline: always predict the training
    window's base rate of "up". The model is said to have an edge only if its Brier score is lower
    than the baseline's with 95 % confidence (day-block bootstrap), on at least 20 test days.
@@ -80,6 +84,18 @@ def _logit(p: np.ndarray) -> np.ndarray:
     return np.log(p / (1 - p))
 
 
+def _binned_isotonic(raw: np.ndarray, y: np.ndarray, bins: int = 100) -> IsotonicRegression:
+    """Isotonic regression fitted on quantile-bin averages (about 1 % of rows per bin), so the
+    most extreme raw scores map to the hit rate of a whole bin instead of a single 0 or 1."""
+    edges = np.unique(np.quantile(raw, np.linspace(0, 1, bins + 1)))
+    b = np.clip(np.searchsorted(edges, raw, side="right") - 1, 0, max(len(edges) - 2, 0))
+    cnt = np.bincount(b)
+    ok = cnt > 0
+    x_mean = np.bincount(b, weights=raw)[ok] / cnt[ok]
+    y_mean = np.bincount(b, weights=y)[ok] / cnt[ok]
+    return IsotonicRegression(y_min=0.0, y_max=1.0, out_of_bounds="clip").fit(x_mean, y_mean, sample_weight=cnt[ok])
+
+
 @dataclass
 class CalibratedModel:
     kind: str
@@ -94,7 +110,10 @@ class CalibratedModel:
     def calibrate(self, raw: np.ndarray) -> np.ndarray:
         if self.calibrator is None:
             p = raw
-        elif self.calibration == "isotonic":
+        elif self.calibration == "blend":
+            iso, platt = self.calibrator
+            p = 0.5 * (iso.predict(raw) + platt.predict_proba(_logit(raw).reshape(-1, 1))[:, 1])
+        elif self.calibration == "isotonic":  # models saved before the blend was introduced
             p = self.calibrator.predict(raw)
         else:  # platt
             p = self.calibrator.predict_proba(_logit(raw).reshape(-1, 1))[:, 1]
@@ -106,14 +125,13 @@ class CalibratedModel:
     def fit_calibrator(self, raw: np.ndarray, y: np.ndarray) -> None:
         if len(y) < 200 or len(np.unique(y)) < 2:
             self.calibrator, self.calibration = None, "none"
-        elif len(y) >= 2000:
-            iso = IsotonicRegression(y_min=0.0, y_max=1.0, out_of_bounds="clip")
-            iso.fit(raw, y)
-            self.calibrator, self.calibration = iso, "isotonic"
+            return
+        platt = LogisticRegression(C=1e6, max_iter=1000)
+        platt.fit(_logit(raw).reshape(-1, 1), y)
+        if len(y) >= 2000:
+            self.calibrator, self.calibration = (_binned_isotonic(raw, y), platt), "blend"
         else:
-            lr = LogisticRegression(C=1e6, max_iter=1000)
-            lr.fit(_logit(raw).reshape(-1, 1), y)
-            self.calibrator, self.calibration = lr, "platt"
+            self.calibrator, self.calibration = platt, "platt"
 
     def contributions(self, X: pd.DataFrame) -> dict[str, float]:
         """Per-feature push on the (uncalibrated) log-odds for a single row.

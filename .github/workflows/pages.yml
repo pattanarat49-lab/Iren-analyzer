@@ -67,13 +67,28 @@ jobs:
           key: iren-models-${{ github.run_id }}
           restore-keys: iren-models-
 
+      # The live track record: every forecast the page showed, scored once its horizon ends.
+      - name: Restore track record
+        uses: actions/cache/restore@v4
+        with:
+          path: track/
+          key: iren-track-${{ github.run_id }}
+          restore-keys: iren-track-
+
       - name: Live snapshot
         working-directory: backend
         run: |
-          mkdir -p ../_site
-          python -m scripts.live_snapshot --out ../_site/live.json \
+          mkdir -p ../_site ../track
+          python -m scripts.live_snapshot --out ../_site/live.json --track-db ../track/track.db \
             || [ -f ../_site/live.json ] \
             || echo '{"ok": false, "error": "สร้างข้อมูลสดไม่สำเร็จ ดูรายละเอียดใน GitHub Actions"}' > ../_site/live.json
+
+      - name: Save track record
+        if: always() && hashFiles('track/track.db') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: track/
+          key: iren-track-${{ github.run_id }}
 
       - name: Assemble site
         run: |

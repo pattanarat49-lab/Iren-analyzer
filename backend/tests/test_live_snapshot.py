@@ -45,3 +45,29 @@ def test_last_valid_decision_skips_bars_whose_horizon_ends_after_the_session():
     wider = pd.date_range("2026-09-23 22:00", "2026-09-23 23:59", freq="1min", tz="UTC")
     assert last_valid_decision(wider, "1h") == datetime(2026, 9, 23, 23, 0, tzinfo=UTC)
     assert last_valid_decision(idx, "eod") == datetime(2026, 9, 24, 0, 0, tzinfo=UTC)
+
+
+def test_track_record_logs_only_valid_forecasts_once_and_scores_them(tmp_path):
+    from app import db
+    from app.market.clock import ET
+    from app.models import Bar
+    from scripts.live_snapshot import update_track_record
+
+    made = datetime(2026, 9, 23, 10, 0, tzinfo=ET)
+    bars = db.make_engine(f"sqlite:///{tmp_path / 'bars.db'}")
+    db.upsert_bars(bars, [Bar("IREN", made + timedelta(minutes=m - 1), 41.0, 41.0, 41.0, 41.0, 100, feed="iex") for m in range(1, 21)])
+    pred = {
+        "available": True,
+        "made_at": made.astimezone(UTC).isoformat(),
+        "price": 40.0,
+        "horizons": {
+            "5m": {"available": True, "valid": True, "p_up": 0.7, "model": "lgbm", "edge": False, "base_rate": 0.5},
+            "1h": {"available": True, "valid": False, "p_up": 0.2, "model": "lgbm", "edge": False, "base_rate": 0.5},
+        },
+    }
+    track = tmp_path / "track.db"
+    update_track_record(track, bars, pred, "IREN", "alpaca")
+    rec = update_track_record(track, bars, pred, "IREN", "alpaca")  # same bar again: not logged twice
+    h5 = rec["horizons"]["5m"]
+    assert h5["n"] == 1 and h5["hit_rate"] == 1.0  # said up (0.7), price 40 -> 41
+    assert rec["horizons"]["1h"]["n"] == 0 and rec["horizons"]["1h"]["pending"] == 0  # invalid: never logged

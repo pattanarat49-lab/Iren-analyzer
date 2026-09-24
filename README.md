@@ -23,7 +23,7 @@ app keeps a live track record that you can check.
   ATR(14) and relative volume, each with a bullish / bearish / neutral signal and one Thai
   sentence explaining why. Also rolling correlation and relative strength vs the context tickers.
 - **Probability engine:** logistic regression and LightGBM, walk-forward validation only,
-  isotonic/Platt calibration, accuracy and Brier score vs a naive baseline, and a clear
+  calibration (average of isotonic and Platt), accuracy and Brier score vs a naive baseline, and a clear
   **"no proven edge"** warning when the model doesn't beat it. It also shows SHAP top factors
   and an ATR-based expected move range.
 - **Track record:** a snapshot every minute per horizon; outcomes are filled in automatically.

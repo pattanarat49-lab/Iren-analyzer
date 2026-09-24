@@ -23,6 +23,7 @@ next-env.d.ts
 data/*.db*
 data/*.sqlite*
 models/
+track/
 reports/*
 !reports/.gitkeep
 

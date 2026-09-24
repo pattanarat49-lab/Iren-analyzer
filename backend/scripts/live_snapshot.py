@@ -26,7 +26,7 @@ from app.data.alpaca_rest import AlpacaAuthError, AlpacaRest, is_crypto
 from app.data.hub import SymbolState, closes_from_snapshot, reference_trading_day
 from app.market.clock import ET, dual_time, session_at
 from app.model.predictor import Predictor, clean_json, model_dir
-from app.model.tracking import target_time
+from app.model.tracking import resolve_due, snapshot_rows, target_time, track_record
 from app.models import parse_ts
 from scripts.backfill import backfill_symbol
 
@@ -73,6 +73,7 @@ async def quote_state(rest: AlpacaRest, symbols: list[str], primary: str) -> dic
 async def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument("--track-db", type=Path, help="SQLite file that keeps the live track record between runs")
     args = ap.parse_args()
 
     s = get_settings()
@@ -102,16 +103,20 @@ async def main() -> int:
     frames = analysis.snapshot()
     spark = day_chart(frames[primary])
 
+    pred = add_last_valid(
+        mark_validity(clean_json(predictor.predict(frames, state[primary].price)), datetime.now(UTC)),
+        frames, predictor, primary,
+    )
+    if args.track_db:
+        out["track_record"] = update_track_record(args.track_db, engine, pred, primary, s.resolved_source)
+
     out.update({
         "ok": True,
         "primary": primary,
         "stock_feed": s.alpaca_stock_feed,
         "quotes": {sym: st.to_json() for sym, st in state.items()},
         "analysis": analysis.compute(1, frames),
-        "prediction": add_last_valid(
-            mark_validity(clean_json(predictor.predict(frames, state[primary].price)), datetime.now(UTC)),
-            frames, predictor, primary,
-        ),
+        "prediction": pred,
         "spark": spark,
     })
     return _write(args.out, out, 0)
@@ -194,6 +199,22 @@ def add_last_valid(pred: dict, frames: dict[str, pd.DataFrame], predictor: Predi
                 "target_at": dual_time(target_time(made, h)),
             }
     return pred
+
+
+def update_track_record(path: Path, bars_engine, pred: dict, primary: str, source: str) -> dict:  # noqa: ANN001
+    """Log this run's live forecasts, score the ones whose horizon has passed, and summarise.
+
+    Only forecasts shown as current (valid) are logged, once per bar and horizon. Outcomes use the
+    same rule as the training labels, read from the bar database.
+    """
+    track = db.make_engine(f"sqlite:///{path}")
+    made_at = pred.get("made_at")
+    live = {h: p for h, p in (pred.get("horizons") or {}).items() if p.get("valid")}
+    if made_at and live:
+        made = datetime.fromisoformat(made_at)
+        db.insert_predictions(track, snapshot_rows({**pred, "horizons": live}, made, source, now=made))
+    resolve_due(track, primary, bars_engine=bars_engine)
+    return clean_json(track_record(track, source, days=30))
 
 
 def _write(path: Path, data: dict, code: int) -> int:

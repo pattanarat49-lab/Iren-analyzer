@@ -254,6 +254,14 @@ footer a { color: var(--accent); }
       <div class="panel"><h2 style="margin-bottom:6px">สัญญาณทางเทคนิค (แท่ง 1 นาที)</h2><p id="lv-sum" style="color:var(--ink-2);font-size:13.5px;margin-bottom:6px"></p><div class="sigs" id="lv-sigs"></div></div>
       <div class="panel"><h2 style="margin-bottom:10px">หุ้นที่เกี่ยวข้องวันนี้</h2><div class="peers" id="lv-peers"></div></div>
     </div>
+    <div class="panel" id="lv-track">
+      <h2 style="margin-bottom:4px">ผลงานจริงของ % ที่เว็บนี้แสดง (30 วันล่าสุด)</h2>
+      <p style="color:var(--ink-2);font-size:13.5px;margin-bottom:10px">ทุกครั้งที่เว็บแสดง % แบบปัจจุบัน ระบบจะบันทึกไว้ แล้วตรวจกับราคาจริงเมื่อครบเวลา ต่างจากผลทดสอบย้อนหลังตรงที่เป็นการทำนายล่วงหน้าจริง ต้องสะสมอย่างน้อย 20 วันทำการจึงจะสรุปได้</p>
+      <div class="tscroll"><table id="lv-track-table" style="min-width:560px">
+        <thead><tr><th>ช่วงเวลา</th><th>ตรวจแล้ว</th><th>รอผล</th><th>ทายถูก</th><th>การเดาแบบง่ายถูก</th><th>Brier เทียบ baseline</th><th>สรุป</th></tr></thead>
+        <tbody><tr><td colspan="7" style="text-align:left;color:var(--ink-3)">ยังไม่มีข้อมูล</td></tr></tbody>
+      </table></div>
+    </div>
   </section>
 
   <hr class="divider">
@@ -581,10 +589,30 @@ document.getElementById("foot").textContent =
       `<div><span>${esc(q.symbol)}</span><span class="num chg ${q.change_pct > 0 ? "up" : q.change_pct < 0 ? "down" : ""}" style="font-size:13px">${pc(q.change_pct)}</span></div>`).join("");
   }
 
+  const VERDICT = {
+    insufficient: '<span class="pill warn">ข้อมูลยังไม่พอ</span>',
+    better: '<span class="pill good">✓ ดีกว่าการเดา</span>',
+    worse: '<span class="pill warn">แย่กว่าการเดา</span>',
+    no_difference: '<span class="pill warn">ไม่ต่างจากการเดา</span>',
+  };
+  function track(d) {
+    const tr = d.track_record;
+    if (!tr) return;
+    const rows = Object.keys(TH).map((h) => {
+      const e = (tr.horizons || {})[h] || { n: 0, pending: 0 };
+      if (!e.n) return `<tr><td>${TH[h]}</td><td class="num">0</td><td class="num">${e.pending || 0}</td><td class="num">–</td><td class="num">–</td><td class="num">–</td><td>${VERDICT.insufficient}</td></tr>`;
+      const diff = e.brier - e.baseline_brier;
+      return `<tr><td>${TH[h]}</td><td class="num">${e.n.toLocaleString("en-US")} <small style="color:var(--ink-3)">(${e.n_days} วัน)</small></td><td class="num">${e.pending || 0}</td>
+        <td class="num">${(e.hit_rate * 100).toFixed(1)}%</td><td class="num">${(e.baseline_hit_rate * 100).toFixed(1)}%</td>
+        <td class="num">${diff > 0 ? "+" : diff < 0 ? "−" : ""}${Math.abs(diff).toFixed(4)}</td><td>${VERDICT[e.verdict] || ""}</td></tr>`;
+    });
+    document.querySelector("#lv-track-table tbody").innerHTML = rows.join("");
+  }
+
   function renderLive(d) {
     last = d;
     if (!d.ok) { $("lv-time").textContent = "โหลดข้อมูลสดไม่สำเร็จ: " + (d.error || "ไม่ทราบสาเหตุ"); return; }
-    header(d); spark(d); probs(d); signals(d);
+    header(d); spark(d); probs(d); signals(d); track(d);
   }
 
   function load() {

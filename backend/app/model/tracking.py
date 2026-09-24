@@ -73,14 +73,18 @@ def snapshot_rows(pred: dict, made_at: datetime, source: str, now: datetime | No
     return rows
 
 
-def resolve_due(engine: Engine, symbol: str, now: datetime | None = None) -> dict[str, int]:
-    """Fill in outcomes for every pending prediction whose target time has passed."""
+def resolve_due(engine: Engine, symbol: str, now: datetime | None = None, bars_engine: Engine | None = None) -> dict[str, int]:
+    """Fill in outcomes for every pending prediction whose target time has passed.
+
+    `bars_engine` reads prices from a different database than the predictions (default: same).
+    """
     now = now or datetime.now(UTC)
+    bars = bars_engine or engine
     counts = {"resolved": 0, "void": 0, "waiting": 0}
     pending = db.pending_predictions(engine, now - RESOLVE_GRACE)
     if not pending:
         return counts
-    latest = db.latest_bar_ts(engine, symbol)
+    latest = db.latest_bar_ts(bars, symbol)
     data_until = latest + timedelta(minutes=1) if latest else None
     for p in pending:
         tgt = p["target_at"]
@@ -92,7 +96,7 @@ def resolve_due(engine: Engine, symbol: str, now: datetime | None = None) -> dic
             else:
                 counts["waiting"] += 1
             continue
-        bar = db.last_bar_ending_by(engine, symbol, tgt)
+        bar = db.last_bar_ending_by(bars, symbol, tgt)
         bar_end = bar.ts + timedelta(minutes=1) if bar else None
         if bar is None or bar_end.astimezone(ET).date() != tgt.astimezone(ET).date():
             db.resolve_prediction(engine, p["id"], status="void", outcome=None, outcome_price=None, now=now)
