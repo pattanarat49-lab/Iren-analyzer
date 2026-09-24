@@ -1,7 +1,15 @@
 from app.config import Settings
 
 
-def test_demo_mode_without_keys_uses_separate_db(tmp_path):
+_KEY_VARS = (
+    "ALPACA_API_KEY_ID", "APCA_API_KEY_ID", "ALPACA_APIKEY",
+    "ALPACA_API_SECRET_KEY", "APCA_API_SECRET_KEY", "ALPACA_SECRETKEY",
+)
+
+
+def test_demo_mode_without_keys_uses_separate_db(tmp_path, monkeypatch):
+    for name in _KEY_VARS:  # real keys in the shell must not leak into this test
+        monkeypatch.delenv(name, raising=False)
     s = Settings(_env_file=None, database_url=f"sqlite:///{tmp_path}/iren.db")
     assert s.resolved_source == "demo"
     assert s.effective_database_url.endswith("iren-demo.db")
