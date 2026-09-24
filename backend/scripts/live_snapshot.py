@@ -34,6 +34,7 @@ UTC = timezone.utc
 HISTORY_DAYS = 30  # same window the live server keeps in memory
 # Bars arrive late on the free IEX feed and the job runs every few minutes; older than this is stale.
 MAX_BAR_AGE = timedelta(minutes=20)
+ONE_MIN = pd.Timedelta(minutes=1)
 
 
 async def refresh_bars(rest: AlpacaRest, engine, symbols: list[str], feed: str) -> None:  # noqa: ANN001
@@ -107,7 +108,10 @@ async def main() -> int:
         "stock_feed": s.alpaca_stock_feed,
         "quotes": {sym: st.to_json() for sym, st in state.items()},
         "analysis": analysis.compute(1, frames),
-        "prediction": mark_validity(clean_json(predictor.predict(frames, state[primary].price)), datetime.now(UTC)),
+        "prediction": add_last_valid(
+            mark_validity(clean_json(predictor.predict(frames, state[primary].price)), datetime.now(UTC)),
+            frames, predictor, primary,
+        ),
         "spark": spark,
     })
     return _write(args.out, out, 0)
@@ -151,6 +155,44 @@ def mark_validity(pred: dict, now: datetime) -> dict:
             p["valid"], p["invalid_reason"] = False, "ช่วงเวลานี้จะสิ้นสุดหลังตลาดปิด (20:00 ET) ซึ่งโมเดลไม่ได้เรียนรู้"
         else:
             p["valid"], p["target_at"] = True, dual_time(tgt)
+    return pred
+
+
+def last_valid_decision(bar_starts: pd.DatetimeIndex, horizon: str, lookback: int = 2000) -> datetime | None:
+    """Latest decision time (bar start + 1 min) whose forecast the model is trained for."""
+    for start in reversed(bar_starts[-lookback:]):
+        made = (start + ONE_MIN).to_pydatetime()
+        if target_time(made, horizon) is not None:
+            return made
+    return None
+
+
+def add_last_valid(pred: dict, frames: dict[str, pd.DataFrame], predictor: Predictor, primary: str) -> dict:
+    """For horizons that cannot be forecast right now (market closed, stale bar), score the most
+    recent bar where they could be, so the page can show that figure with its reference time."""
+    todo = [h for h, p in (pred.get("horizons") or {}).items() if p.get("available") and not p.get("valid")]
+    if not todo or frames[primary].empty:
+        return pred
+    by_time: dict[datetime, list[str]] = {}
+    for h in todo:
+        made = last_valid_decision(frames[primary].index, h)
+        if made is not None:
+            by_time.setdefault(made, []).append(h)
+    for made, hs in by_time.items():
+        cut = {sym: f[f.index < made] for sym, f in frames.items()}
+        past = clean_json(predictor.predict(cut))
+        for h in hs:
+            p = (past.get("horizons") or {}).get(h) or {}
+            if not p.get("available"):
+                continue
+            pred["horizons"][h]["last_valid"] = {
+                "made_at": dual_time(made),
+                "price": past.get("price"),
+                "p_up": p["p_up"],
+                "p_down": p["p_down"],
+                "expected_move": p.get("expected_move"),
+                "target_at": dual_time(target_time(made, h)),
+            }
     return pred
 
 

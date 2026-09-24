@@ -30,3 +30,18 @@ def test_stale_bar_is_invalid():
     made = datetime(2026, 9, 23, 18, 0, tzinfo=UTC)
     h = mark_validity(_pred(made), made + timedelta(hours=2))["horizons"]
     assert not any(x["valid"] for x in h.values())
+
+
+def test_last_valid_decision_skips_bars_whose_horizon_ends_after_the_session():
+    import pandas as pd
+
+    from scripts.live_snapshot import last_valid_decision
+
+    # Bars (start times) up to 19:59 ET on Wed 2026-09-23 (23:59 UTC).
+    idx = pd.date_range("2026-09-23 23:00", "2026-09-23 23:59", freq="1min", tz="UTC")
+    assert last_valid_decision(idx, "5m") == datetime(2026, 9, 23, 23, 55, tzinfo=UTC)
+    # Every 1h forecast from these bars would end after 20:00 ET.
+    assert last_valid_decision(idx, "1h") is None
+    wider = pd.date_range("2026-09-23 22:00", "2026-09-23 23:59", freq="1min", tz="UTC")
+    assert last_valid_decision(wider, "1h") == datetime(2026, 9, 23, 23, 0, tzinfo=UTC)
+    assert last_valid_decision(idx, "eod") == datetime(2026, 9, 24, 0, 0, tzinfo=UTC)
