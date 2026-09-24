@@ -137,6 +137,17 @@ Then start (or keep running) the server. It loads the models automatically. From
 - every trading day, 30 minutes after the extended session ends (20:30 ET = 07:30 Bangkok time),
   the server downloads the new bars and **retrains automatically**.
 
+### Daily backtest on GitHub Actions
+
+`.github/workflows/daily-backtest.yml` repeats the three commands above every US trading day
+(22:30 UTC, 05:30 Bangkok time) and commits the result to
+[`docs/backtest-latest.md`](docs/backtest-latest.md) (plus `.json`). It needs two repository secrets
+under **Settings → Secrets and variables → Actions**: `ALPACA_API_KEY_ID` and
+`ALPACA_API_SECRET_KEY`. The bar database is kept in the Actions cache between runs; the trained
+models are attached to each run as a downloadable artifact. Start a run by hand from the
+**Actions** tab with **Run workflow**. This is a scheduled job, not a live server: for the live
+dashboard see [Deploy to the internet](#6-deploy-to-the-internet).
+
 ## 5. Using the dashboard
 
 | Panel | What it tells you |

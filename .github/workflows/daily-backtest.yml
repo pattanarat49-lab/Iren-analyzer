@@ -1,0 +1,102 @@
+name: Daily backtest
+
+# Every US trading day after the close: download new Alpaca bars, retrain the models,
+# re-run the walk-forward backtest and commit the report to docs/backtest-latest.md.
+#
+# Needs two repository secrets (Settings → Secrets and variables → Actions):
+#   ALPACA_API_KEY_ID, ALPACA_API_SECRET_KEY
+# Scheduled runs only fire from the default branch. Use "Run workflow" to start one by hand.
+
+on:
+  schedule:
+    - cron: "30 22 * * 1-5" # 22:30 UTC = after the 16:00 ET close (05:30 Bangkok time)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-backtest
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID }}
+      ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check secrets
+        run: |
+          if [ -z "$ALPACA_API_KEY_ID" ] || [ -z "$ALPACA_API_SECRET_KEY" ]; then
+            echo "::error::Add ALPACA_API_KEY_ID and ALPACA_API_SECRET_KEY under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+
+      - run: pip install -r backend/requirements.txt
+
+      # The bar database is kept between runs in the Actions cache, so each run only downloads
+      # the new bars. If the cache is gone (unused for 7 days) the first run re-downloads 2 years.
+      - name: Restore bar database
+        uses: actions/cache/restore@v4
+        with:
+          path: data/
+          key: iren-db-${{ github.run_id }}
+          restore-keys: iren-db-
+
+      - name: Backfill
+        working-directory: backend
+        run: python -m scripts.backfill
+
+      - name: Save bar database
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/
+          key: iren-db-${{ github.run_id }}
+
+      - name: Train
+        working-directory: backend
+        run: python -m scripts.train
+
+      - name: Backtest
+        working-directory: backend
+        run: python -m scripts.backtest
+
+      - name: Copy latest report
+        run: |
+          stem=$(ls -t reports/backtest-alpaca-*.md | head -1)
+          cp "$stem" docs/backtest-latest.md
+          cp "${stem%.md}.json" docs/backtest-latest.json
+          sed -n '/^## Summary/,/^## 5m/p' docs/backtest-latest.md | head -n -1 >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload models and report
+        uses: actions/upload-artifact@v4
+        with:
+          name: models-and-report
+          path: |
+            models/
+            docs/backtest-latest.*
+          retention-days: 14
+
+      - name: Commit report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/backtest-latest.md docs/backtest-latest.json
+          if git diff --cached --quiet; then
+            echo "Report unchanged."
+            exit 0
+          fi
+          git commit -m "Update daily backtest report ($(date -u +%Y-%m-%d))"
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"

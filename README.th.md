@@ -97,6 +97,16 @@ python -m scripts.backtest     # (ไม่บังคับ) สร้าง�
 - **บันทึกการทำนายทุก 1 นาที** และเทียบกับราคาจริงเมื่อครบเวลา ดูผลได้ที่หน้า `/track-record`
 - **ฝึกโมเดลใหม่ทุกวันทำการ** เวลา 07:30 น. (เวลาไทย) หลังตลาดสหรัฐฯ ปิดช่วง after-hours
 
+### รันอัตโนมัติทุกวันบน GitHub Actions
+
+ไฟล์ `.github/workflows/daily-backtest.yml` จะรัน 3 คำสั่งข้างบนให้เองทุกวันทำการของตลาดสหรัฐฯ เวลา 05:30 น. (เวลาไทย) แล้ว commit รายงานล่าสุดไว้ที่ [`docs/backtest-latest.md`](docs/backtest-latest.md)
+
+ต้องตั้ง secret 2 ตัวครั้งเดียวที่ **Settings → Secrets and variables → Actions → New repository secret**:
+- `ALPACA_API_KEY_ID`
+- `ALPACA_API_SECRET_KEY`
+
+สั่งรันทันทีได้ที่แท็บ **Actions → Daily backtest → Run workflow** โมเดลที่ train แล้วดาวน์โหลดได้จากหน้าผลการรันแต่ละครั้ง (Artifacts) งานนี้เป็นงานตามเวลา ไม่ใช่เว็บที่เปิดตลอด ถ้าต้องการหน้าเว็บสด ดูหัวข้อ "นำขึ้นอินเทอร์เน็ต"
+
 ## 6. วิธีอ่านหน้าจอ
 
 | ส่วน | ความหมาย |
