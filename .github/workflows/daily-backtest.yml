@@ -61,7 +61,9 @@ jobs:
       - name: Backfill
         id: backfill
         working-directory: backend
-        run: python -m scripts.backfill
+        run: |
+          python -c "from app.config import get_settings as g; s = g(); print(f'Cleaned lengths (expect 26 and 44): {len(s.alpaca_api_key_id)}, {len(s.alpaca_api_secret_key)}')"
+          python -m scripts.backfill
 
       - name: Save bar database
         if: always() && hashFiles('data/*.db') != ''

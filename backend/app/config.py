@@ -91,8 +91,8 @@ class Settings(BaseSettings):
     @field_validator("alpaca_api_key_id", "alpaca_api_secret_key", mode="before")
     @classmethod
     def _strip_key(cls, v: str | None) -> str:
-        # Keys pasted into a secrets form often pick up a trailing newline or space.
-        return (v or "").strip()
+        # Keys pasted into a secrets form often pick up a trailing newline, spaces or quotes.
+        return (v or "").strip().strip("\"'").strip()
 
     @field_validator("alpaca_history_feed", mode="before")
     @classmethod
