@@ -147,7 +147,11 @@ under **Settings → Secrets and variables → Actions**: `ALPACA_API_KEY_ID` an
 models are attached to each run as a downloadable artifact. Start a run by hand from the
 **Actions** tab with **Run workflow**. After each run, `.github/workflows/pages.yml` publishes a results page
 (`site/index.html`, which reads `backtest-latest.json`) to GitHub Pages. Turn it on once under
-**Settings → Pages → Source: GitHub Actions** (Pages on a private repository needs a paid GitHub plan). This is a scheduled job, not a live server: for the live
+**Settings → Pages → Source: GitHub Actions** (Pages on a private repository needs a paid GitHub plan).
+The same workflow also runs every 5 minutes on US trading days: `scripts/live_snapshot.py` fetches the
+newest bars and quotes and scores them with the saved models, so the page shows the current price,
+indicator signals and P(up) per horizon. It is near-real-time (GitHub may start scheduled runs
+late); for tick-by-tick updates run the full app. This is a scheduled job, not a live server: for the live
 dashboard see [Deploy to the internet](#6-deploy-to-the-internet).
 
 ## 5. Using the dashboard

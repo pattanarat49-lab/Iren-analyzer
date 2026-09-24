@@ -1,14 +1,20 @@
 name: Pages
 
-# Publishes the results page (site/index.html + docs/backtest-latest.json) to GitHub Pages.
-# Runs when the page changes, by hand, and after every Daily backtest run.
+# Publishes the results page to GitHub Pages: site/index.html, the latest backtest report and a
+# fresh live snapshot (quotes, indicators, P(up) per horizon) computed on the newest Alpaca bars.
+# Runs every 5 minutes on US trading days (pre-market to after-hours), after every Daily
+# backtest run, when the page changes, and by hand. GitHub may start scheduled runs late.
 # One-time setup: Settings → Pages → Build and deployment → Source: "GitHub Actions".
 
 on:
+  schedule:
+    - cron: "*/5 8-23 * * 1-5" # 08:00–23:59 UTC Mon–Fri (04:00–20:00 ET in summer)
+    - cron: "*/5 0 * * 2-6" # 00:00–00:59 UTC, the end of after-hours in winter
   push:
     paths:
       - site/**
       - docs/backtest-latest.json
+      - backend/scripts/live_snapshot.py
       - .github/workflows/pages.yml
   workflow_dispatch:
   workflow_call:
@@ -20,23 +26,57 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID || secrets.ALPACA_APIKEY || secrets.APCA_API_KEY_ID }}
+      ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY || secrets.ALPACA_SECRETKEY || secrets.APCA_API_SECRET_KEY }}
     steps:
       - uses: actions/checkout@v5
         with:
           # After a Daily backtest run, pick up the report the bot just committed.
           ref: ${{ github.ref_name }}
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+
+      - run: pip install -r backend/requirements.txt
+
+      # Bars and models saved by the Daily backtest job (read only here).
+      - name: Restore bar database
+        uses: actions/cache/restore@v4
+        with:
+          path: data/
+          key: iren-db-${{ github.run_id }}
+          restore-keys: iren-db-
+
+      - name: Restore models
+        uses: actions/cache/restore@v4
+        with:
+          path: models/
+          key: iren-models-${{ github.run_id }}
+          restore-keys: iren-models-
+
+      - name: Live snapshot
+        working-directory: backend
+        run: |
+          mkdir -p ../_site
+          python -m scripts.live_snapshot --out ../_site/live.json \
+            || [ -f ../_site/live.json ] \
+            || echo '{"ok": false, "error": "สร้างข้อมูลสดไม่สำเร็จ ดูรายละเอียดใน GitHub Actions"}' > ../_site/live.json
+
       - name: Assemble site
         run: |
-          mkdir -p _site
           cp site/index.html _site/
           cp docs/backtest-latest.json _site/
 

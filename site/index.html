@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>IREN Edge Check</title>
+<title>IREN Live Odds</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap">
@@ -19,6 +19,8 @@
   --accent: #2a78d6;
   --good: #1f7a3f;
   --good-bg: #e3f3e8;
+  --bad: #b3261e;
+  --bad-bg: #fbe4e2;
   --warn: #8a5a00;
   --warn-bg: #fbf0d6;
   --mark: #5b6475;
@@ -38,6 +40,8 @@
     --accent: #3987e5;
     --good: #5cc983;
     --good-bg: #16301f;
+    --bad: #f07a70;
+    --bad-bg: #3a1a18;
     --warn: #e7b44b;
     --warn-bg: #33280f;
     --mark: #a3abb9;
@@ -57,6 +61,8 @@
   --accent: #3987e5;
   --good: #5cc983;
   --good-bg: #16301f;
+  --bad: #f07a70;
+  --bad-bg: #3a1a18;
   --warn: #e7b44b;
   --warn-bg: #33280f;
   --mark: #a3abb9;
@@ -172,13 +178,84 @@ tr.group td { border-bottom: none; padding-top: 16px; font-weight: 600; text-ali
 
 footer { font-size: 12.5px; color: var(--ink-3); display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 16px; }
 footer a { color: var(--accent); }
+
+/* live */
+.live { display: grid; gap: 16px; }
+.live-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.px { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.px .sym { font-size: 15px; font-weight: 600; color: var(--ink-2); }
+.px .price { font-size: 40px; font-weight: 600; line-height: 1; font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.chg { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 16px; font-weight: 500; }
+.chg.up { color: var(--good); }
+.chg.down { color: var(--bad); }
+.live-meta { display: grid; gap: 4px; justify-items: end; font-size: 12.5px; color: var(--ink-3); text-align: right; }
+@media (max-width: 560px) { .live-meta { justify-items: start; text-align: left; } }
+.sess { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--grid); color: var(--ink-2); }
+.sess.regular { background: var(--good-bg); color: var(--good); }
+.spark { width: 100%; height: 150px; display: block; }
+.spark text { fill: var(--ink-3); font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; }
+.spark .gl { stroke: var(--grid); stroke-width: 1; }
+.spark .ln { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.spark .ar { fill: var(--accent); opacity: 0.1; }
+.spark .pc { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.spark .xh { stroke: var(--ink-2); stroke-width: 1; }
+.probs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 820px) { .probs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 440px) { .probs { grid-template-columns: 1fr; } }
+.prob { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+.prob .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-weight: 600; }
+.prob .big { display: flex; justify-content: space-between; align-items: baseline; font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.prob .big .u { font-size: 26px; font-weight: 600; color: var(--good); }
+.prob .big .d { font-size: 18px; color: var(--bad); }
+.prob .big small { font-family: "IBM Plex Sans Thai", system-ui, sans-serif; font-size: 11.5px; color: var(--ink-3); font-weight: 400; margin-left: 4px; }
+.gauge { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; background: var(--surface); }
+.gauge i { display: block; height: 100%; }
+.gauge .gu { background: var(--good); border-radius: 4px 0 0 4px; }
+.gauge .gd { background: var(--bad); border-radius: 0 4px 4px 0; }
+.prob .note { font-size: 12px; color: var(--ink-3); line-height: 1.5; }
+.prob.off .big { color: var(--ink-3); }
+.coin { font-size: 12px; color: var(--warn); background: var(--warn-bg); border-radius: 6px; padding: 6px 8px; line-height: 1.45; }
+.sigs { display: grid; gap: 0; }
+.sig { display: grid; grid-template-columns: 110px 90px 1fr; gap: 4px 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; align-items: baseline; }
+.sig:last-child { border-bottom: none; }
+@media (max-width: 560px) { .sig { grid-template-columns: 1fr auto; } .sig .ex { grid-column: 1 / -1; } }
+.sig .nm { font-weight: 600; }
+.sig .ex { color: var(--ink-2); }
+.tag { font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 999px; justify-self: start; white-space: nowrap; }
+.tag.bullish { color: var(--good); background: var(--good-bg); }
+.tag.bearish { color: var(--bad); background: var(--bad-bg); }
+.tag.neutral { color: var(--ink-2); background: var(--grid); }
+.peers { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px 16px; font-size: 13px; }
+.peers div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); padding: 6px 0; }
+.two { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; }
+@media (max-width: 820px) { .two { grid-template-columns: 1fr; } }
+.divider { border: none; border-top: 1px solid var(--line); margin: 8px 0 0; }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <section class="live" id="live">
+    <div class="eyebrow">IREN · ข้อมูลจริงจาก Alpaca · อัปเดตอัตโนมัติทุกประมาณ 5–10 นาที</div>
+    <div class="live-top">
+      <div class="px"><span class="sym">IREN</span><span class="price" id="lv-price">–</span><span class="chg" id="lv-chg"></span></div>
+      <div class="live-meta"><span id="lv-sess"></span><span id="lv-time">กำลังโหลดข้อมูลล่าสุด…</span></div>
+    </div>
+    <div class="panel" style="padding:12px 12px 4px"><div id="lv-spark-cap" style="font-size:12.5px;color:var(--ink-3);padding:0 4px 4px">ราคารายนาทีของวันซื้อขายล่าสุด · เส้นประคือราคาปิดของวันก่อนหน้า</div><svg class="spark" id="lv-spark" role="img" aria-label="กราฟราคา IREN รายนาทีของวันซื้อขายล่าสุด"></svg></div>
+    <div>
+      <h2 style="margin-bottom:10px">โอกาสราคาขึ้น / ลง ตอนนี้</h2>
+      <div class="probs" id="lv-probs"></div>
+    </div>
+    <div class="two">
+      <div class="panel"><h2 style="margin-bottom:6px">สัญญาณทางเทคนิค (แท่ง 1 นาที)</h2><p id="lv-sum" style="color:var(--ink-2);font-size:13.5px;margin-bottom:6px"></p><div class="sigs" id="lv-sigs"></div></div>
+      <div class="panel"><h2 style="margin-bottom:10px">หุ้นที่เกี่ยวข้องวันนี้</h2><div class="peers" id="lv-peers"></div></div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
   <header>
     <div class="eyebrow">IREN · ทดสอบย้อนหลังแบบ walk-forward · ข้อมูลจริงจาก Alpaca</div>
-    <h1>โมเดลทำนายทิศทางราคา IREN ดีกว่าการเดาแบบง่ายหรือไม่</h1>
+    <h1>ผลทดสอบย้อนหลัง: โมเดลดีกว่าการเดาแบบง่ายหรือไม่</h1>
     <div class="meta" id="meta"></div>
   </header>
 
@@ -368,6 +445,126 @@ DATA.h.forEach((h) => {
 document.getElementById("foot").textContent =
   `ทดสอบแบบ walk-forward 5 ช่วง บนครึ่งหลังของข้อมูล · baseline = สัดส่วนราคาขึ้นในช่วงฝึก · ★ = โมเดลที่ Brier ต่ำสุด`;
 }
+</script>
+
+<script>
+(() => {
+  const TH = { "5m": "5 นาที", "15m": "15 นาที", "1h": "1 ชั่วโมง", "eod": "ถึงปิดตลาด" };
+  const SIG = { bullish: "บวก", bearish: "ลบ", neutral: "กลาง" };
+  const $ = (id) => document.getElementById(id);
+  const tip = $("tip");
+  const money = (x) => (x == null ? "–" : x.toFixed(2));
+  const pc = (x, d = 2) => (x == null ? "–" : (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toFixed(d) + "%");
+  const bkkTime = (iso) => new Date(iso).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" });
+  const etClock = (sec) => new Date(sec * 1000).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
+  const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  let last = null;
+
+  function header(d) {
+    const q = d.quotes[d.primary];
+    $("lv-price").textContent = money(q.price);
+    const chg = $("lv-chg");
+    chg.className = "chg " + (q.change_pct > 0 ? "up" : q.change_pct < 0 ? "down" : "");
+    chg.textContent = q.change == null ? "" : `${q.change > 0 ? "▲" : q.change < 0 ? "▼" : ""} ${Math.abs(q.change).toFixed(2)} (${pc(q.change_pct)})`;
+    const ss = d.session;
+    $("lv-sess").innerHTML = `<span class="sess ${ss.session === "regular" ? "regular" : ""}">${esc(ss.label_th)}</span>`;
+    $("lv-time").textContent = `อัปเดต ${bkkTime(d.generated_at.utc)} (เวลาไทย) · ราคาล่าสุด ${q.updated ? bkkTime(q.updated.utc) : "–"}`;
+  }
+
+  function spark(d) {
+    const svg = $("lv-spark");
+    const pts = d.spark && d.spark.points;
+    const W = Math.max(280, svg.clientWidth), H = 150, L = 8, R = 52, T = 10, B = 22;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    if (!pts || pts.length < 2) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">ยังไม่มีข้อมูลราคา</text>`; return; }
+    const prev = d.spark.ref_close;
+    const vals = pts.map((p) => p[1]).concat(prev ? [prev] : []);
+    let lo = Math.min(...vals), hi = Math.max(...vals);
+    const pad = (hi - lo) * 0.08 || 0.5; lo -= pad; hi += pad;
+    const x = (i) => L + (i / (pts.length - 1)) * (W - L - R);
+    const y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+    const line = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
+    const area = `${line}L${x(pts.length - 1).toFixed(1)},${H - B}L${L},${H - B}Z`;
+    const ticks = [lo + pad, (lo + hi) / 2, hi - pad];
+    const xt = [0, Math.floor((pts.length - 1) / 2), pts.length - 1];
+    const lp = pts[pts.length - 1];
+    const dayLabel = new Date(d.spark.date + "T12:00:00Z").toLocaleDateString("th-TH", { day: "numeric", month: "short" });
+    svg.innerHTML = `
+      ${ticks.map((t) => `<line class="gl" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${W - R + 6}" y="${y(t) + 3.5}">${t.toFixed(2)}</text>`).join("")}
+      ${prev ? `<line class="pc" x1="${L}" x2="${W - R}" y1="${y(prev)}" y2="${y(prev)}"/>` : ""}
+      ${xt.map((i) => `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle"}">${etClock(pts[i][0])} ET</text>`).join("")}
+      <path class="ar" d="${area}"/><path class="ln" d="${line}"/>
+      <circle cx="${x(pts.length - 1)}" cy="${y(lp[1])}" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>
+      <line class="xh" id="lv-xh" y1="${T}" y2="${H - B}" visibility="hidden"/>
+      <rect x="${L}" y="0" width="${W - L - R}" height="${H}" fill="transparent" id="lv-hit"/>`;
+    const hit = $("lv-hit"), xh = $("lv-xh");
+    hit.addEventListener("mousemove", (ev) => {
+      const r = svg.getBoundingClientRect();
+      const px = ((ev.clientX - r.left) / r.width) * W;
+      const i = Math.max(0, Math.min(pts.length - 1, Math.round(((px - L) / (W - L - R)) * (pts.length - 1))));
+      xh.setAttribute("x1", x(i)); xh.setAttribute("x2", x(i)); xh.setAttribute("visibility", "visible");
+      const chg = prev ? ` (${pc((pts[i][1] / prev - 1) * 100)} จากปิดวันก่อน)` : "";
+      tip.innerHTML = `${dayLabel} ${etClock(pts[i][0])} ET<br><b class="num">${pts[i][1].toFixed(2)}</b>${chg}`;
+      tip.hidden = false;
+      tip.style.left = Math.min(ev.clientX + 14, innerWidth - tip.offsetWidth - 8) + "px";
+      tip.style.top = ev.clientY + 14 + "px";
+    });
+    hit.addEventListener("mouseleave", () => { tip.hidden = true; xh.setAttribute("visibility", "hidden"); });
+  }
+
+  function probs(d) {
+    const p = d.prediction || {};
+    const box = $("lv-probs");
+    box.innerHTML = "";
+    Object.keys(TH).forEach((h) => {
+      const v = (p.horizons || {})[h] || {};
+      const card = document.createElement("div");
+      if (!v.available || !v.valid) {
+        card.className = "prob off";
+        card.innerHTML = `<div class="hd"><span>${TH[h]}</span></div>
+          <div class="big"><span style="font-size:22px">–</span></div>
+          <div class="note">${esc(v.invalid_reason || v.reason || "ยังไม่มีการคำนวณ")}</div>`;
+      } else {
+        const up = v.p_up * 100, dn = 100 - up;
+        const em = v.expected_move;
+        card.className = "prob";
+        card.innerHTML = `<div class="hd"><span>${TH[h]}</span>${v.edge ? '<span class="pill good">✓ EDGE</span>' : '<span class="pill warn">⚠ ไม่มี edge</span>'}</div>
+          <div class="big"><span class="u">${up.toFixed(1)}%<small>ขึ้น</small></span><span class="d">${dn.toFixed(1)}%<small>ลง</small></span></div>
+          <div class="gauge" aria-hidden="true"><i class="gu" style="width:${up}%"></i><i class="gd" style="width:${dn}%"></i></div>
+          ${em ? `<div class="note">กรอบราคาที่คาด (ตาม ATR): <span class="num">${em.low.toFixed(2)} – ${em.high.toFixed(2)}</span> (±${em.move_pct.toFixed(1)}%)</div>` : ""}
+          ${v.edge ? "" : '<div class="coin">โมเดลยังไม่ชนะการเดาแบบง่ายในการทดสอบย้อนหลัง ให้ถือตัวเลขนี้เหมือนการโยนเหรียญ</div>'}`;
+      }
+      box.appendChild(card);
+    });
+  }
+
+  function signals(d) {
+    const a = d.analysis || {};
+    $("lv-sum").textContent = a.summary ? a.summary.explanation : (a.message || "");
+    $("lv-sigs").innerHTML = (a.indicators || []).map((s) =>
+      `<div class="sig"><span class="nm">${esc(s.name)}</span><span class="tag ${s.signal}">${SIG[s.signal] || s.signal}</span><span class="ex">${esc(s.explanation)}</span></div>`).join("");
+    const peers = Object.values(d.quotes).filter((q) => q.symbol !== d.primary);
+    $("lv-peers").innerHTML = peers.map((q) =>
+      `<div><span>${esc(q.symbol)}</span><span class="num chg ${q.change_pct > 0 ? "up" : q.change_pct < 0 ? "down" : ""}" style="font-size:13px">${pc(q.change_pct)}</span></div>`).join("");
+  }
+
+  function renderLive(d) {
+    last = d;
+    if (!d.ok) { $("lv-time").textContent = "โหลดข้อมูลสดไม่สำเร็จ: " + (d.error || "ไม่ทราบสาเหตุ"); return; }
+    header(d); spark(d); probs(d); signals(d);
+  }
+
+  function load() {
+    fetch("live.json", { cache: "no-store" })
+      .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(renderLive)
+      .catch(() => { if (!last) $("lv-time").textContent = "ยังไม่มีข้อมูลสด รอให้งานบน GitHub Actions รันรอบถัดไป"; });
+  }
+  load();
+  setInterval(load, 60_000);
+  let rt;
+  addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => last && last.ok && spark(last), 150); });
+})();
 </script>
 </body>
 </html>

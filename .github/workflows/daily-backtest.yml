@@ -76,6 +76,13 @@ jobs:
         working-directory: backend
         run: python -m scripts.train
 
+      # The Pages job restores these to score the live snapshot every few minutes.
+      - name: Save models
+        uses: actions/cache/save@v4
+        with:
+          path: models/
+          key: iren-models-${{ github.run_id }}
+
       - name: Backtest
         working-directory: backend
         run: python -m scripts.backtest
@@ -116,3 +123,4 @@ jobs:
       pages: write
       id-token: write
     uses: ./.github/workflows/pages.yml
+    secrets: inherit
