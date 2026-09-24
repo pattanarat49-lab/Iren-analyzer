@@ -38,6 +38,8 @@ jobs:
             echo "::error::Add them as Repository secrets under Settings → Secrets and variables → Actions (not Variables, not Environment/Codespaces/Dependabot secrets)."
             exit 1
           fi
+          # Lengths only (never the values), to compare with the keys shown on the Alpaca dashboard.
+          echo "Key ID length: ${#ALPACA_API_KEY_ID}, secret key length: ${#ALPACA_API_SECRET_KEY}"
 
       - uses: actions/setup-python@v5
         with:
@@ -62,7 +64,7 @@ jobs:
         run: python -m scripts.backfill
 
       - name: Save bar database
-        if: always() && steps.backfill.outcome != 'skipped'
+        if: always() && hashFiles('data/*.db') != ''
         uses: actions/cache/save@v4
         with:
           path: data/

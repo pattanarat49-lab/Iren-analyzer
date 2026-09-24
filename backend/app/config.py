@@ -88,6 +88,12 @@ class Settings(BaseSettings):
     def _default_models(cls, v: str | Path | None) -> Path:
         return Path(v) if v else REPO_DIR / "models"
 
+    @field_validator("alpaca_api_key_id", "alpaca_api_secret_key", mode="before")
+    @classmethod
+    def _strip_key(cls, v: str | None) -> str:
+        # Keys pasted into a secrets form often pick up a trailing newline or space.
+        return (v or "").strip()
+
     @field_validator("alpaca_history_feed", mode="before")
     @classmethod
     def _empty_is_none(cls, v: str | None) -> str | None:

@@ -68,3 +68,8 @@ def test_short_env_names_are_accepted(monkeypatch):
     s = Settings(_env_file=None)
     assert (s.alpaca_api_key_id, s.alpaca_api_secret_key) == ("short-id", "short-secret")
     assert s.resolved_source == "alpaca"
+
+
+def test_keys_are_stripped():
+    s = Settings(_env_file=None, alpaca_api_key_id=" k\n", alpaca_api_secret_key="s \n")
+    assert (s.alpaca_api_key_id, s.alpaca_api_secret_key) == ("k", "s")
