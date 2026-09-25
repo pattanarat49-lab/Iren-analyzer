@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, time
 from pathlib import Path
 
 import joblib
@@ -58,11 +59,17 @@ def review(frames: dict[str, pd.DataFrame], primary: str, peers: list[str], mode
         },
         "horizons": {},
     }
+    day_open = datetime.combine(day, time(9, 30), tzinfo=ET)
     for h in HORIZONS:
         path = models / f"{h}.joblib"
         if not path.exists():
             continue
         bundle = joblib.load(path)
+        trained = bundle.get("trained_at")
+        if trained and datetime.fromisoformat(trained) > day_open:
+            # Trained after the session opened (e.g. a manual re-run): it may have seen the day.
+            out.setdefault("skipped", []).append(h)
+            continue
         labels = build_labels(feats, px, h).loc[rows.index]
         known = labels["y"].notna().to_numpy()
         if not known.any():
@@ -107,7 +114,8 @@ def main() -> int:
     frames = load_frames(db.make_engine(s.effective_database_url), s.all_symbols, 0.25)
     result = review(frames, primary, peers, model_dir(s.models_dir, s.resolved_source))
     if result is None or not result["horizons"]:
-        print("Nothing to review (no regular-session data or no saved models).")
+        why = "the saved models were trained after that session opened" if result and result.get("skipped") else "no regular-session data or no saved models"
+        print(f"Nothing to review ({why}); history left unchanged.")
         return 0
     history = []
     if args.out.exists():

@@ -722,6 +722,11 @@ document.getElementById("foot").textContent =
       return `<li>${TH[h]}: ช่วง ${w.hour}:00–${w.hour}:59 ET ทายถูก ${pct(w.hit_rate)} (${dir} ${pct(Math.max(w.up_rate, 1 - w.up_rate))} ของเวลา แต่โมเดลทายขึ้นเฉลี่ย ${pct(w.mean_p)})</li>`;
     }).join("");
     if (worst) document.getElementById("dr-worst").innerHTML = `<b>ชั่วโมงที่พลาดมากที่สุด</b><ul style="margin:4px 0 0;padding-left:20px">${worst}</ul>`;
+    // 09:30 ET of the reviewed day in UTC (EDT is UTC-4, EST UTC-5; take the later, stricter bound).
+    const open = Date.parse(r.day + "T13:30:00Z");
+    const seen = Object.values(r.horizons).some((e) => e.trained_at && Date.parse(e.trained_at) > open);
+    if (seen) document.getElementById("dr-worst").insertAdjacentHTML("afterbegin",
+      '<div class="coin" style="margin-bottom:8px">โมเดลที่ใช้ตรวจวันนี้ถูกเทรนหลังตลาดเปิดของวันนั้น จึงเคยเห็นข้อมูลบางส่วนของวันนี้แล้ว ผลอาจดีกว่าความจริงเล็กน้อย</div>');
   }).catch(() => {});
 })();
 </script>
