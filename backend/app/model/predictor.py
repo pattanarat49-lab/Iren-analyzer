@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from ..market.clock import dual_time
-from .explain import top_factors
+from .explain import peer_effects, top_factors
 from .features import HORIZON_TH, HORIZONS, build_features, expected_move
 
 log = logging.getLogger(__name__)
@@ -106,6 +106,7 @@ class Predictor:
                     "reliability": best["reliability"],
                 },
                 "factors": top_factors(contrib, row, self.primary, self.peers),
+                "peer_effects": peer_effects(m, last, contrib, self.peers),
                 "expected_move": expected_move(price, row.get("atr") or float("nan"), h, row.get("mins_to_eod")),
                 "trained_at": b.get("trained_at"),
                 "source": b.get("source"),
@@ -117,8 +118,19 @@ class Predictor:
             "made_at": feats.index[-1].isoformat(),  # decision time (UTC) used for the track record
             "price": price,
             "live_price": live_price,
+            "peer_moves": _peer_moves(row, self.primary, self.peers),
             "horizons": out,
         }
+
+
+def _peer_moves(row: dict, primary: str, peers: list[str]) -> dict[str, dict]:
+    """Recent returns of each peer and how the primary did relative to it (log returns)."""
+    out = {}
+    for sym in peers:
+        tag = sym.replace("/", "").lower()
+        moves = {k: row.get(f"{tag}_{k}") for k in ("ret_1", "ret_5", "ret_15", "ret_60", "rel_1", "rel_5", "rel_15", "rel_60")}
+        out[sym] = {k: v for k, v in moves.items() if v is not None}
+    return out
 
 
 def _unavailable(h: str, reason: str = "ยังไม่ได้ฝึกโมเดลสำหรับช่วงเวลานี้ (รัน python -m scripts.train)") -> dict:

@@ -371,7 +371,7 @@ def prepare(frames: dict[str, pd.DataFrame], primary: str, peers: list[str]) -> 
 def train_horizon(feats: pd.DataFrame, primary_frame: pd.DataFrame, horizon: str, n_folds: int = 5) -> HorizonResult:
     labels = build_labels(feats, primary_frame, horizon)
     data = feats.join(labels).dropna(subset=["y"])
-    features = feature_columns(feats)
+    features = feature_columns(feats, horizon)
     # Drop features that are entirely missing (e.g. a peer with no history in the database).
     features = [f for f in features if data[f].notna().any()]
     meta = {

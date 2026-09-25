@@ -197,3 +197,34 @@ def test_recentre_moves_level_to_whole_window_up_rate():
     cal_start = int(len(y) * 0.8)
     assert moved.shift == pytest.approx(y.mean() - y[cal_start:].mean())
     assert plain.shift == 0.0
+
+
+def test_fast_cifr_features_only_for_5m():
+    frames = make_frames(6, momentum=0.0, seed=5)
+    frames["CIFR"] = frames["QQQ"].copy()
+    feats = build_features(frames, "IREN", [*PEERS, "CIFR"])
+    fast = {"cifr_ret_1", "cifr_rel_1", "cifr_ret_2", "cifr_rel_2", "cifr_rel_5", "cifr_rel_60"}
+    assert fast <= set(feats.columns)
+    assert fast <= set(feature_columns(feats, "5m"))
+    assert not fast & set(feature_columns(feats, "1h"))
+    assert "cifr_ret_15" in feature_columns(feats, "1h")  # the slower CIFR features stay everywhere
+    # rel = own return minus CIFR return over the same minute
+    row = feats.dropna(subset=["cifr_rel_1"]).iloc[-1]
+    assert row["cifr_rel_1"] == pytest.approx(row["ret_1"] - row["cifr_ret_1"])
+
+
+def test_peer_effect_matches_sign_and_is_zero_without_push():
+    from app.model.explain import peer_effects
+
+    frames = make_frames(10, momentum=0.0, seed=6)
+    feats = build_features(frames, "IREN", PEERS)
+    data = feats.join(build_labels(feats, frames["IREN"], "5m")).dropna(subset=["y"])
+    tns = data["target_t"].values.astype("datetime64[ns]").astype(np.int64)
+    m = fit_calibrated("logreg", data, data["y"].to_numpy().astype(int), tns, feature_columns(feats))
+    X = data.iloc[[-1]]
+    contrib = m.contributions(X)
+    eff = peer_effects(m, X, contrib, PEERS)
+    for sym in PEERS:
+        push = sum(c for f, c in contrib.items() if f.startswith(sym.replace("/", "").lower() + "_"))
+        assert np.sign(eff.get(sym, 0.0)) == np.sign(push) or abs(eff.get(sym, 0.0)) < 1e-9
+    assert peer_effects(m, X, {k: 0.0 for k in contrib}, PEERS) == {}

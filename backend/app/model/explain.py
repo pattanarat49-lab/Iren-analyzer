@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import math
 
-from .features import PEER_LOOKBACKS, RET_LOOKBACKS
+import numpy as np
+
+from .features import FAST_LOOKBACKS, PEER_LOOKBACKS, RET_LOOKBACKS
 
 # Features that describe one concept are summed into a single factor.
 GROUPS = {"tod_sin": "tod", "tod_cos": "tod", "is_pre": "session", "is_regular": "session", "is_after": "session"}
@@ -59,11 +61,11 @@ def describe(name: str, row: dict[str, float], primary: str, peers: list[str]) -
         return "ช่วงตลาด", s
     for sym in peers:
         tag = sym.replace("/", "").lower()
-        for k in PEER_LOOKBACKS:
+        for k in (*FAST_LOOKBACKS, *PEER_LOOKBACKS):
             if name == f"{tag}_ret_{k}":
                 return f"ผลตอบแทน {sym} {k} นาทีล่าสุด", val(_pct)
-        if name == f"{tag}_rel_15":
-            return f"{primary} แข็ง/อ่อนกว่า {sym} ใน 15 นาที", val(_pct)
+            if name == f"{tag}_rel_{k}":
+                return f"{primary} แข็ง/อ่อนกว่า {sym} ใน {k} นาที", val(_pct)
     return name, val(lambda x: f"{x:.4g}")
 
 
@@ -80,3 +82,24 @@ def top_factors(contrib: dict[str, float], row: dict[str, float], primary: str, 
     up = sorted((i for i in items if i["impact"] > 0), key=lambda i: -i["impact"])[:n]
     down = sorted((i for i in items if i["impact"] < 0), key=lambda i: i["impact"])[:n]
     return {"up": up, "down": down}
+
+
+def peer_effects(model, X, contrib: dict[str, float], peers: list[str]) -> dict[str, float]:  # noqa: ANN001
+    """Percentage-point change in P(up) caused by each peer's features for the latest row.
+
+    The peer's summed contributions are removed from the raw log-odds and the result is passed
+    through the same calibration, so the number is directly comparable with the shown P(up).
+    """
+    raw = float(model.raw_proba(X.iloc[[-1]])[0])
+    raw = min(max(raw, 1e-6), 1 - 1e-6)
+    logit = math.log(raw / (1 - raw))
+    p = float(model.calibrate(np.array([raw]))[0])
+    out = {}
+    for sym in peers:
+        tag = sym.replace("/", "").lower() + "_"
+        push = sum(c for f, c in contrib.items() if f.startswith(tag))
+        if push == 0:
+            continue
+        without = 1 / (1 + math.exp(-(logit - push)))
+        out[sym] = p - float(model.calibrate(np.array([without]))[0])
+    return out

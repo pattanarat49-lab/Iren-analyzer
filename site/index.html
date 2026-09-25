@@ -17,6 +17,7 @@
   --ink-2: #4a5160;
   --ink-3: #6f7686;
   --accent: #2a78d6;
+  --series-2: #eb6834;
   --good: #1f7a3f;
   --good-bg: #e3f3e8;
   --bad: #b3261e;
@@ -38,6 +39,7 @@
     --ink-2: #b4bac6;
     --ink-3: #8c93a1;
     --accent: #3987e5;
+    --series-2: #d95926;
     --good: #5cc983;
     --good-bg: #16301f;
     --bad: #f07a70;
@@ -59,6 +61,7 @@
   --ink-2: #b4bac6;
   --ink-3: #8c93a1;
   --accent: #3987e5;
+  --series-2: #d95926;
   --good: #5cc983;
   --good-bg: #16301f;
   --bad: #f07a70;
@@ -181,6 +184,8 @@ footer a { color: var(--accent); }
 
 /* live */
 .live { display: grid; gap: 16px; }
+/* grid children may shrink below their tables' min-width; the tables scroll inside .tscroll */
+.wrap > *, .live > *, .two > * { min-width: 0; }
 .live-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
 .px { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .px .sym { font-size: 15px; font-weight: 600; color: var(--ink-2); }
@@ -192,10 +197,11 @@ footer a { color: var(--accent); }
 @media (max-width: 560px) { .live-meta { justify-items: start; text-align: left; } }
 .sess { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--grid); color: var(--ink-2); }
 .sess.regular { background: var(--good-bg); color: var(--good); }
-.spark { width: 100%; height: 150px; display: block; }
+.spark { width: 100%; height: 170px; display: block; }
 .spark text { fill: var(--ink-3); font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; }
 .spark .gl { stroke: var(--grid); stroke-width: 1; }
 .spark .ln { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.spark .ln2 { fill: none; stroke: var(--series-2); stroke-width: 2; stroke-linejoin: round; }
 .spark .ar { fill: var(--accent); opacity: 0.1; }
 .spark .pc { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
 .spark .xh { stroke: var(--ink-2); stroke-width: 1; }
@@ -233,7 +239,7 @@ footer a { color: var(--accent); }
 .peers { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px 16px; font-size: 13px; }
 .peers div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); padding: 6px 0; }
 .two { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; }
-@media (max-width: 820px) { .two { grid-template-columns: 1fr; } }
+@media (max-width: 820px) { .two { grid-template-columns: minmax(0, 1fr); } }
 .divider { border: none; border-top: 1px solid var(--line); margin: 8px 0 0; }
 </style>
 </head>
@@ -245,11 +251,12 @@ footer a { color: var(--accent); }
       <div class="px"><span class="sym">IREN</span><span class="price" id="lv-price">–</span><span class="chg" id="lv-chg"></span></div>
       <div class="live-meta"><span id="lv-sess"></span><span id="lv-time">กำลังโหลดข้อมูลล่าสุด…</span></div>
     </div>
-    <div class="panel" style="padding:12px 12px 4px"><div id="lv-spark-cap" style="font-size:12.5px;color:var(--ink-3);padding:0 4px 4px">ราคารายนาทีของวันซื้อขายล่าสุด · เส้นประคือราคาปิดของวันก่อนหน้า</div><svg class="spark" id="lv-spark" role="img" aria-label="กราฟราคา IREN รายนาทีของวันซื้อขายล่าสุด"></svg></div>
+    <div class="panel" style="padding:12px 12px 4px"><div id="lv-spark-cap" style="font-size:12.5px;color:var(--ink-3);padding:0 4px 4px">% เปลี่ยนแปลงรายนาทีของวันซื้อขายล่าสุด เทียบราคาปิดวันก่อนหน้าของแต่ละตัว (เส้นประ = 0%)</div><div class="chart-legend" id="lv-spark-legend" style="padding:0 4px"></div><svg class="spark" id="lv-spark" role="img" aria-label="กราฟราคา IREN รายนาทีของวันซื้อขายล่าสุด"></svg></div>
     <div>
       <h2 style="margin-bottom:10px">โอกาสราคาขึ้น / ลง ตอนนี้</h2>
       <div class="probs" id="lv-probs"></div>
     </div>
+    <div class="panel" id="lv-cifr" hidden></div>
     <div class="two">
       <div class="panel"><h2 style="margin-bottom:6px">สัญญาณทางเทคนิค (แท่ง 1 นาที)</h2><p id="lv-sum" style="color:var(--ink-2);font-size:13.5px;margin-bottom:6px"></p><div class="sigs" id="lv-sigs"></div></div>
       <div class="panel"><h2 style="margin-bottom:10px">หุ้นที่เกี่ยวข้องวันนี้</h2><div class="peers" id="lv-peers"></div></div>
@@ -493,45 +500,82 @@ document.getElementById("foot").textContent =
     $("lv-time").textContent = `อัปเดต ${bkkTime(d.generated_at.utc)} (เวลาไทย) · ราคาล่าสุด ${q.updated ? bkkTime(q.updated.utc) : "–"}`;
   }
 
+  // IREN and CIFR today, each in % from its own previous close, on one shared % axis.
   function spark(d) {
     const svg = $("lv-spark");
-    const pts = d.spark && d.spark.points;
-    const W = Math.max(280, svg.clientWidth), H = 150, L = 8, R = 52, T = 10, B = 22;
+    const sp = d.spark || {};
+    const main = { sym: d.primary, cls: "ln", dot: "var(--accent)", ref: sp.ref_close, pts: sp.points || [] };
+    const peers = Object.entries(sp.peers || {}).map(([sym, v]) => ({ sym, cls: "ln2", dot: "var(--series-2)", ref: v.ref_close, pts: v.points || [] }));
+    const lines = [main, ...peers].filter((l) => l.ref && l.pts.length > 1);
+    const W = Math.max(280, svg.clientWidth), H = 170, L = 8, R = 58, T = 10, B = 22;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-    if (!pts || pts.length < 2) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">ยังไม่มีข้อมูลราคา</text>`; return; }
-    const prev = d.spark.ref_close;
-    const vals = pts.map((p) => p[1]).concat(prev ? [prev] : []);
-    let lo = Math.min(...vals), hi = Math.max(...vals);
+    if (!lines.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">ยังไม่มีข้อมูลราคา</text>`; return; }
+    lines.forEach((l) => (l.pc = l.pts.map((p) => [p[0], (p[1] / l.ref - 1) * 100, p[1]])));
+    const all = lines.flatMap((l) => l.pc);
+    const t0 = Math.min(...all.map((p) => p[0])), t1 = Math.max(...all.map((p) => p[0]));
+    let lo = Math.min(0, ...all.map((p) => p[1])), hi = Math.max(0, ...all.map((p) => p[1]));
     const pad = (hi - lo) * 0.08 || 0.5; lo -= pad; hi += pad;
-    const x = (i) => L + (i / (pts.length - 1)) * (W - L - R);
+    const x = (t) => L + ((t - t0) / Math.max(1, t1 - t0)) * (W - L - R);
     const y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
-    const line = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
-    const area = `${line}L${x(pts.length - 1).toFixed(1)},${H - B}L${L},${H - B}Z`;
-    const ticks = [lo + pad, (lo + hi) / 2, hi - pad];
-    const xt = [0, Math.floor((pts.length - 1) / 2), pts.length - 1];
-    const lp = pts[pts.length - 1];
-    const dayLabel = new Date(d.spark.date + "T12:00:00Z").toLocaleDateString("th-TH", { day: "numeric", month: "short" });
+    const step = [0.25, 0.5, 1, 2, 2.5, 5, 10].find((st) => (hi - lo) / st <= 5) || 10;
+    const ticks = []; for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(+v.toFixed(2));
+    const path = (l) => l.pc.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
+    const xt = [t0, (t0 + t1) / 2, t1];
     svg.innerHTML = `
-      ${ticks.map((t) => `<line class="gl" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${W - R + 6}" y="${y(t) + 3.5}">${t.toFixed(2)}</text>`).join("")}
-      ${prev ? `<line class="pc" x1="${L}" x2="${W - R}" y1="${y(prev)}" y2="${y(prev)}"/>` : ""}
-      ${xt.map((i) => `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle"}">${etClock(pts[i][0])} ET</text>`).join("")}
-      <path class="ar" d="${area}"/><path class="ln" d="${line}"/>
-      <circle cx="${x(pts.length - 1)}" cy="${y(lp[1])}" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>
+      ${ticks.map((t) => `<line class="${t === 0 ? "pc" : "gl"}" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${W - R + 6}" y="${y(t) + 3.5}">${t > 0 ? "+" : ""}${t}%</text>`).join("")}
+      ${xt.map((t, i) => `<text x="${x(t)}" y="${H - 6}" text-anchor="${["start", "middle", "end"][i]}">${etClock(t)} ET</text>`).join("")}
+      ${lines.slice().reverse().map((l) => `<path class="${l.cls}" d="${path(l)}"/>`).join("")}
+      ${lines.map((l) => { const p = l.pc[l.pc.length - 1]; return `<circle cx="${x(p[0])}" cy="${y(p[1])}" r="4" fill="${l.dot}" stroke="var(--surface)" stroke-width="2"/>`; }).join("")}
       <line class="xh" id="lv-xh" y1="${T}" y2="${H - B}" visibility="hidden"/>
       <rect x="${L}" y="0" width="${W - L - R}" height="${H}" fill="transparent" id="lv-hit"/>`;
+    $("lv-spark-legend").innerHTML = lines.map((l) => {
+      const last = l.pc[l.pc.length - 1];
+      return `<span><i class="sw" style="background:${l.dot}"></i>${esc(l.sym)} <b class="num">${last[2].toFixed(2)}</b> <span class="num">(${pc(last[1])})</span></span>`;
+    }).join("");
     const hit = $("lv-hit"), xh = $("lv-xh");
+    const near = (l, t) => l.pc.reduce((a, p) => (Math.abs(p[0] - t) < Math.abs(a[0] - t) ? p : a));
     hit.addEventListener("mousemove", (ev) => {
       const r = svg.getBoundingClientRect();
-      const px = ((ev.clientX - r.left) / r.width) * W;
-      const i = Math.max(0, Math.min(pts.length - 1, Math.round(((px - L) / (W - L - R)) * (pts.length - 1))));
-      xh.setAttribute("x1", x(i)); xh.setAttribute("x2", x(i)); xh.setAttribute("visibility", "visible");
-      const chg = prev ? ` (${pc((pts[i][1] / prev - 1) * 100)} จากปิดวันก่อน)` : "";
-      tip.innerHTML = `${dayLabel} ${etClock(pts[i][0])} ET<br><b class="num">${pts[i][1].toFixed(2)}</b>${chg}`;
+      const t = t0 + (((ev.clientX - r.left) / r.width) * W - L) / (W - L - R) * (t1 - t0);
+      xh.setAttribute("x1", x(t)); xh.setAttribute("x2", x(t)); xh.setAttribute("visibility", "visible");
+      tip.innerHTML = `${etClock(t)} ET` + lines.map((l) => { const p = near(l, t); return `<br>${esc(l.sym)} <b class="num">${p[2].toFixed(2)}</b> (${pc(p[1])})`; }).join("");
       tip.hidden = false;
       tip.style.left = Math.min(ev.clientX + 14, innerWidth - tip.offsetWidth - 8) + "px";
       tip.style.top = ev.clientY + 14 + "px";
     });
     hit.addEventListener("mouseleave", () => { tip.hidden = true; xh.setAttribute("visibility", "hidden"); });
+  }
+
+  // CIFR right now: its recent moves next to IREN's, and how much it moves each P(up).
+  function follow(d, sym = "CIFR") {
+    const box = $("lv-cifr");
+    const mv = (d.prediction && d.prediction.peer_moves && d.prediction.peer_moves[sym]) || null;
+    const q = d.quotes[sym];
+    if (!mv || !q) { box.hidden = true; return; }
+    box.hidden = false;
+    const f = (x) => (x == null ? "–" : pc((Math.exp(x) - 1) * 100));
+    const cls = (x) => (x > 0 ? "up" : x < 0 ? "down" : "");
+    const rows = [1, 5, 15, 60].map((k) => {
+      const c = mv[`ret_${k}`], rel = mv[`rel_${k}`];
+      const own = c != null && rel != null ? c + rel : null;
+      return `<tr><td>${k} นาทีล่าสุด</td><td class="num chg ${cls(c)}">${f(c)}</td><td class="num chg ${cls(own)}">${f(own)}</td><td class="num">${f(rel)}</td></tr>`;
+    }).join("");
+    const hz = d.prediction.horizons || {};
+    const eff = Object.keys(TH).map((h) => {
+      const v = hz[h] || {};
+      const pe = (v.valid ? v.peer_effects : v.last_valid && v.last_valid.peer_effects) || {};
+      const e = pe[sym];
+      if (e == null) return "";
+      const pts = e * 100;
+      return `<div><span>${TH[h]}</span><b class="num chg ${cls(pts)}">${pts > 0 ? "+" : pts < 0 ? "−" : ""}${Math.abs(pts).toFixed(2)} จุด</b></div>`;
+    }).join("");
+    box.innerHTML = `<h2 style="margin-bottom:4px">ติดตาม ${sym}</h2>
+      <p style="color:var(--ink-2);font-size:13.5px;margin-bottom:8px">${sym} ราคา <b class="num">${q.price?.toFixed(2) ?? "–"}</b> <span class="num chg ${cls(q.change_pct)}">${pc(q.change_pct)}</span> วันนี้ · ในข้อมูล 2 ปี ${sym} กับ IREN ขยับไปทางเดียวกันสูง (correlation รายนาที 0.61) และเมื่อ ${sym} ขยับมากกว่า IREN ในนาทีล่าสุด IREN มักขยับตามภายใน 1–5 นาที</p>
+      <div class="two" style="gap:20px">
+        <div class="tscroll"><table style="min-width:320px"><thead><tr><th>ช่วง</th><th>${sym}</th><th>IREN</th><th>IREN − ${sym}</th></tr></thead><tbody>${rows}</tbody></table></div>
+        <div><div style="font-weight:600;font-size:13.5px;margin-bottom:6px">${sym} ทำให้ % ขึ้นของ IREN เปลี่ยนไป</div><div class="peers" style="grid-template-columns:1fr">${eff || '<span style="color:var(--ink-3)">ยังไม่มีข้อมูล</span>'}</div>
+        <p style="font-size:12px;color:var(--ink-3);margin-top:8px">คำนวณโดยเอาส่วนที่มาจากข้อมูล ${sym} ออกจากโมเดลแล้วเทียบ % ที่ได้ ช่วง 5 นาทีใช้การเคลื่อนไหว 1–2 นาทีล่าสุดของ ${sym} ด้วย ช่วงอื่นใช้เฉพาะ 5–60 นาที เพราะข้อมูลระยะสั้นทำให้ผลทดสอบของช่วงยาวแย่ลง</p></div>
+      </div>`;
   }
 
   const fmtRef = (dt) => {
@@ -550,6 +594,14 @@ document.getElementById("foot").textContent =
     const lo = Math.round(b.bin_low * 100), hi = Math.round(b.bin_high * 100);
     const few = b.n < 100 ? " (จำนวนน้อย เชื่อถือได้ไม่มาก)" : "";
     return `<div class="hist"><b>เทียบข้อมูลย้อนหลัง</b><br>เมื่อโมเดลให้ค่า ${lo}–${hi}% ราคาขึ้นจริง <span class="num">${(b.observed * 100).toFixed(1)}%</span> จาก <span class="num">${b.n.toLocaleString("en-US")}</span> ครั้ง${few}<br>${base}</div>`;
+  }
+
+  function cifrLine(pe, sym = "CIFR") {
+    const e = pe && pe[sym];
+    if (e == null) return "";
+    const pts = e * 100;
+    const dir = pts > 0 ? "ดันให้โอกาสขึ้นสูงขึ้น" : "ดึงให้โอกาสขึ้นต่ำลง";
+    return `<div class="ref"><b>ผลจาก ${sym}</b><br>${dir} <b class="num chg ${pts > 0 ? "up" : "down"}">${pts > 0 ? "+" : "−"}${Math.abs(pts).toFixed(2)} จุด</b></div>`;
   }
 
   function probs(d) {
@@ -580,6 +632,7 @@ document.getElementById("foot").textContent =
         <div class="big"><span class="u">${up.toFixed(1)}%<small>ขึ้น</small></span><span class="d">${dn.toFixed(1)}%<small>ลง</small></span></div>
         <div class="gauge" aria-hidden="true"><i class="gu" style="width:${up}%"></i><i class="gd" style="width:${dn}%"></i></div>
         <div class="ref"><b>ข้อมูลที่ใช้อ้างอิง</b><br>ราคา <span class="num">${src.price != null ? src.price.toFixed(2) : "–"}</span> ณ ${fmtRef(src.made_at)}<br>วัดผลที่ ${fmtRef(src.target_at)}${v.model ? `<br>โมเดล ${esc(v.model)}` : ""}</div>
+        ${cifrLine(live ? v.peer_effects : lv.peer_effects)}
         ${history(v, src.p_up)}
         ${em ? `<div class="note">กรอบราคาที่คาด (ตาม ATR): <span class="num">${em.low.toFixed(2)} – ${em.high.toFixed(2)}</span> (±${em.move_pct.toFixed(1)}%)</div>` : ""}
         ${live ? "" : `<div class="note">${esc(v.invalid_reason || "")}</div>`}
@@ -621,7 +674,7 @@ document.getElementById("foot").textContent =
   function renderLive(d) {
     last = d;
     if (!d.ok) { $("lv-time").textContent = "โหลดข้อมูลสดไม่สำเร็จ: " + (d.error || "ไม่ทราบสาเหตุ"); return; }
-    header(d); spark(d); probs(d); signals(d); track(d);
+    header(d); spark(d); probs(d); follow(d); signals(d); track(d);
   }
 
   function load() {

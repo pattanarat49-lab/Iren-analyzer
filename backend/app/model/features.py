@@ -28,6 +28,19 @@ RET_LOOKBACKS = (1, 5, 15, 30, 60)
 PEER_LOOKBACKS = (5, 15, 60)
 # A peer price older than this at decision time is treated as missing (e.g. a thin pre-market).
 PEER_STALE = pd.Timedelta(minutes=30)
+# Peers that also get 1- and 2-minute features. CIFR moves with IREN (1-minute correlation 0.61)
+# and IREN tends to catch up within a few minutes when CIFR moved further in the last minute.
+FAST_PEERS = ("CIFR",)
+FAST_LOOKBACKS = (1, 2)
+# Features used only by the listed horizons. The fast CIFR features improved the 5-minute
+# walk-forward results (accuracy and Brier, regular session included) but added noise to 1h and
+# end-of-day, so the other horizons leave them out.
+HORIZON_ONLY: dict[str, tuple[str, ...]] = {
+    f"{p.replace('/', '').lower()}_{kind}_{k}": ("5m",)
+    for p in FAST_PEERS
+    for kind, ks in (("ret", FAST_LOOKBACKS), ("rel", (*FAST_LOOKBACKS, 5, 60)))
+    for k in ks
+}
 
 
 @dataclass
@@ -179,6 +192,9 @@ def build_features(frames: dict[str, pd.DataFrame], primary: str, peers: list[st
             for k in PEER_LOOKBACKS:
                 X[f"{tag}_ret_{k}"] = np.full(len(df), np.nan)
             X[f"{tag}_rel_15"] = np.full(len(df), np.nan)
+            for name, only in HORIZON_ONLY.items():
+                if name.startswith(f"{tag}_"):
+                    X[name] = np.full(len(df), np.nan)
             continue
         ppx = PriceIndex.from_frame(pdf.sort_index())
         now_p, _ = ppx.at(t_ns, max_age=PEER_STALE)
@@ -186,6 +202,14 @@ def build_features(frames: dict[str, pd.DataFrame], primary: str, peers: list[st
             past_p, _ = ppx.at(t_ns - pd.Timedelta(minutes=k).value, max_age=PEER_STALE + pd.Timedelta(minutes=k))
             X[f"{tag}_ret_{k}"] = np.log(now_p / past_p)
         X[f"{tag}_rel_15"] = ret15 - X[f"{tag}_ret_15"]
+        if sym in FAST_PEERS:
+            for k in FAST_LOOKBACKS:
+                past_p, _ = ppx.at(t_ns - pd.Timedelta(minutes=k).value, max_age=PEER_STALE + pd.Timedelta(minutes=k))
+                X[f"{tag}_ret_{k}"] = np.log(now_p / past_p)
+                own_past, _ = px.at(t_ns - pd.Timedelta(minutes=k).value)
+                X[f"{tag}_rel_{k}"] = np.log(close / own_past) - X[f"{tag}_ret_{k}"]
+            X[f"{tag}_rel_5"] = X["ret_5"] - X[f"{tag}_ret_5"]
+            X[f"{tag}_rel_60"] = X["ret_60"] - X[f"{tag}_ret_60"]
 
     out = pd.DataFrame(X, index=t)
     out.index.name = "t"
@@ -197,8 +221,12 @@ def build_features(frames: dict[str, pd.DataFrame], primary: str, peers: list[st
 NON_FEATURES = ("price", "atr")
 
 
-def feature_columns(feats: pd.DataFrame) -> list[str]:
-    return [c for c in feats.columns if c not in NON_FEATURES]
+def feature_columns(feats: pd.DataFrame, horizon: str | None = None) -> list[str]:
+    """Model inputs; with `horizon`, leaves out features reserved for other horizons."""
+    return [
+        c for c in feats.columns
+        if c not in NON_FEATURES and (horizon is None or c not in HORIZON_ONLY or horizon in HORIZON_ONLY[c])
+    ]
 
 
 def build_labels(feats: pd.DataFrame, primary_frame: pd.DataFrame, horizon: str) -> pd.DataFrame:

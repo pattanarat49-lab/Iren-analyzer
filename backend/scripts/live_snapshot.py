@@ -101,7 +101,7 @@ async def main() -> int:
     predictor = Predictor(model_dir(s.models_dir, s.resolved_source), primary, peers)
     predictor.load()
     frames = analysis.snapshot()
-    spark = day_chart(frames[primary])
+    spark = day_chart(frames[primary], {sym: frames[sym] for sym in FOLLOW if sym in frames})
 
     pred = add_last_valid(
         mark_validity(clean_json(predictor.predict(frames, state[primary].price)), datetime.now(UTC)),
@@ -122,19 +122,28 @@ async def main() -> int:
     return _write(args.out, out, 0)
 
 
-def day_chart(df: pd.DataFrame) -> dict | None:
-    """1-minute closes of the latest trading day in the data, plus the close before it."""
+FOLLOW = ("CIFR",)  # peers drawn next to the primary on the day chart
+
+
+def day_chart(df: pd.DataFrame, others: dict[str, pd.DataFrame] | None = None) -> dict | None:
+    """1-minute closes of the latest trading day in the data, plus the close before it; the same
+    for each of `others` over that day, so they can be compared in % from their own close."""
     if df.empty:
         return None
-    et_dates = df.index.tz_convert(ET).date
-    day = et_dates[-1]
-    today = df["close"][et_dates == day]
-    before = df["close"][et_dates < day]
-    return {
-        "date": day.isoformat(),
-        "ref_close": float(before.iloc[-1]) if not before.empty else None,
-        "points": [[int(t.timestamp()), float(c)] for t, c in today.items()],
-    }
+    day = df.index.tz_convert(ET).date[-1]
+
+    def series(f: pd.DataFrame) -> dict:
+        et_dates = f.index.tz_convert(ET).date
+        today = f["close"][et_dates == day]
+        before = f["close"][et_dates < day]
+        return {
+            "ref_close": float(before.iloc[-1]) if not before.empty else None,
+            "points": [[int(t.timestamp()), float(c)] for t, c in today.items()],
+        }
+
+    out = {"date": day.isoformat(), **series(df)}
+    out["peers"] = {sym: series(f) for sym, f in (others or {}).items() if not f.empty}
+    return out
 
 
 def mark_validity(pred: dict, now: datetime) -> dict:
@@ -196,6 +205,7 @@ def add_last_valid(pred: dict, frames: dict[str, pd.DataFrame], predictor: Predi
                 "p_up": p["p_up"],
                 "p_down": p["p_down"],
                 "expected_move": p.get("expected_move"),
+                "peer_effects": p.get("peer_effects"),
                 "target_at": dual_time(target_time(made, h)),
             }
     return pred
