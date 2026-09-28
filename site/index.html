@@ -641,6 +641,7 @@ document.getElementById("foot").textContent =
         <div class="big"><span class="u">${up.toFixed(1)}%<small>ขึ้น</small></span><span class="d">${dn.toFixed(1)}%<small>ลง</small></span></div>
         <div class="gauge" aria-hidden="true"><i class="gu" style="width:${up}%"></i><i class="gd" style="width:${dn}%"></i></div>
         <div class="ref"><b>ข้อมูลที่ใช้อ้างอิง</b><br>ราคา <span class="num">${src.price != null ? src.price.toFixed(2) : "–"}</span> ณ ${fmtRef(src.made_at)}<br>วัดผลที่ ${fmtRef(src.target_at)}${v.model ? `<br>โมเดล ${esc(v.model)}` : ""}</div>
+        ${(live ? v.source_note : lv.source_note) ? `<div class="stamp" style="white-space:normal">${esc(live ? v.source_note : lv.source_note)}</div>` : ""}
         ${cifrLine(live ? v.peer_effects : lv.peer_effects)}
         ${indicatorLine(live ? v.indicator_effects : lv.indicator_effects, h)}
         ${history(v, src.p_up)}

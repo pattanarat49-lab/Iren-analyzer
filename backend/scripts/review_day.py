@@ -25,7 +25,7 @@ from app.config import get_settings
 from app.market.clock import ET
 from app.model.data import load_frames
 from app.model.features import HORIZON_TH, HORIZONS, build_features, build_labels
-from app.model.predictor import clean_json, model_dir
+from app.model.predictor import clean_json, model_dir, near_close_source
 
 KEEP = 60  # reviews kept in the history file
 
@@ -60,6 +60,7 @@ def review(frames: dict[str, pd.DataFrame], primary: str, peers: list[str], mode
         "horizons": {},
     }
     day_open = datetime.combine(day, time(9, 30), tzinfo=ET)
+    bundles, probs = {}, {}
     for h in HORIZONS:
         path = models / f"{h}.joblib"
         if not path.exists():
@@ -70,11 +71,18 @@ def review(frames: dict[str, pd.DataFrame], primary: str, peers: list[str], mode
             # Trained after the session opened (e.g. a manual re-run): it may have seen the day.
             out.setdefault("skipped", []).append(h)
             continue
+        bundles[h], probs[h] = bundle, bundle["model"].predict_proba(rows)
+    if "eod" in probs:
+        # Score the end-of-day number the site showed: near the close it comes from a shorter
+        # horizon's model (see predictor.near_close_source).
+        src = [near_close_source(m) for m in rows["mins_to_eod"].to_numpy()]
+        probs["eod"] = np.array([probs[s][i] if s in probs else probs["eod"][i] for i, s in enumerate(src)])
+    for h, bundle in bundles.items():
         labels = build_labels(feats, px, h).loc[rows.index]
         known = labels["y"].notna().to_numpy()
         if not known.any():
             continue
-        p = bundle["model"].predict_proba(rows)[known]
+        p = probs[h][known]
         y = labels["y"].to_numpy()[known]
         base = bundle["meta"].get("train_up_rate") or bundle["metrics"]["up_rate"]
         hit = (p > 0.5) == (y == 1)

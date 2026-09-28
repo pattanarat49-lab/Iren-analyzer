@@ -112,6 +112,7 @@ class Predictor:
                 "trained_at": b.get("trained_at"),
                 "source": b.get("source"),
             }
+        apply_near_close(out, row.get("mins_to_eod"))
         return {
             **base,
             "available": True,
@@ -122,6 +123,39 @@ class Predictor:
             "peer_moves": _peer_moves(row, self.primary, self.peers),
             "horizons": out,
         }
+
+
+def near_close_source(mins_to_eod: float | None) -> str | None:
+    """Horizon whose model should answer the end-of-day question this close to the close.
+
+    Near the close the end-of-day model, trained mostly on decision times hours before the
+    close, was worse than the naive baseline in the walk-forward (last 60 minutes: Brier
+    +0.00100 vs baseline), while the 1-hour model scored on the same end-of-day outcomes was
+    better (-0.00090). With 5 minutes or less left the question is the 5-minute one, so both
+    cards show the same number. Overall end-of-day Brier improved from -0.00114 to -0.00142.
+    """
+    if mins_to_eod is None or not np.isfinite(mins_to_eod) or mins_to_eod <= 0:
+        return None
+    if mins_to_eod <= 5:
+        return "5m"
+    if mins_to_eod <= 60:
+        return "1h"
+    return None
+
+
+def apply_near_close(out: dict[str, dict], mins_to_eod: float | None) -> None:
+    """Replace the end-of-day forecast with the shorter-horizon one near the close (in place)."""
+    src = near_close_source(mins_to_eod)
+    eod, other = out.get("eod"), out.get(src) if src else None
+    if not (eod and other and eod.get("available") and other.get("available")):
+        return
+    for k in ("p_up", "p_down", "factors", "peer_effects", "indicator_effects", "model"):
+        eod[k] = other.get(k)
+    eod["source_horizon"] = src
+    eod["source_note"] = (
+        f"เหลือเวลาถึงปิดตลาด {mins_to_eod:.0f} นาที จึงใช้ตัวเลขจากโมเดล {HORIZON_TH[src]} "
+        "ซึ่งทดสอบย้อนหลังแล้วทายราคาปิดได้ดีกว่าโมเดลถึงปิดตลาดในช่วงนี้"
+    )
 
 
 def _peer_moves(row: dict, primary: str, peers: list[str]) -> dict[str, dict]:

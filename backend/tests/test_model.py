@@ -228,3 +228,21 @@ def test_peer_effect_matches_sign_and_is_zero_without_push():
         push = sum(c for f, c in contrib.items() if f.startswith(sym.replace("/", "").lower() + "_"))
         assert np.sign(eff.get(sym, 0.0)) == np.sign(push) or abs(eff.get(sym, 0.0)) < 1e-9
     assert peer_effects(m, X, {k: 0.0 for k in contrib}, PEERS) == {}
+
+
+def test_near_close_end_of_day_uses_shorter_horizon():
+    from app.model.predictor import apply_near_close, near_close_source
+
+    assert near_close_source(3) == "5m" and near_close_source(5) == "5m"
+    assert near_close_source(30) == "1h" and near_close_source(60) == "1h"
+    assert near_close_source(61) is None and near_close_source(None) is None and near_close_source(0) is None
+    out = {
+        "5m": {"available": True, "p_up": 0.44, "p_down": 0.56, "model": "logreg", "factors": {}},
+        "1h": {"available": True, "p_up": 0.52, "p_down": 0.48, "model": "lgbm", "factors": {}},
+        "eod": {"available": True, "p_up": 0.40, "p_down": 0.60, "model": "logreg", "factors": {}, "edge": False},
+    }
+    apply_near_close(out, 4)
+    assert out["eod"]["p_up"] == 0.44 and out["eod"]["source_horizon"] == "5m" and out["eod"]["edge"] is False
+    out["eod"].update(p_up=0.40, p_down=0.60)
+    apply_near_close(out, 200)
+    assert out["eod"]["p_up"] == 0.40  # far from the close: unchanged
