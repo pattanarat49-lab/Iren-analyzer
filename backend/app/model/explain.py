@@ -50,6 +50,17 @@ def describe(name: str, row: dict[str, float], primary: str, peers: list[str]) -
         "day_range_pos": ("ตำแหน่งในกรอบราคาสูง-ต่ำของวันนี้", lambda x: f"{x * 100:.0f}%"),
         "dow": ("วันในสัปดาห์", lambda x: ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"][int(x)]),
         "mins_to_eod": ("เวลาที่เหลือถึงตลาดปิด", lambda x: f"{x:.0f} นาที"),
+        "stochrsi_k": ("Stoch RSI %K", lambda x: f"{(x + 0.5) * 100:.0f}"),
+        "stochrsi_d": ("Stoch RSI %D", lambda x: f"{(x + 0.5) * 100:.0f}"),
+        "stochrsi_kd": ("Stoch RSI %K − %D", lambda x: f"{x * 100:+.0f}"),
+        "di_plus": ("DMI +DI", lambda x: f"{x * 100:.0f}"),
+        "di_minus": ("DMI −DI", lambda x: f"{x * 100:.0f}"),
+        "di_diff": ("DMI +DI − −DI", lambda x: f"{x * 100:+.0f}"),
+        "adx": ("ADX (ความแรงของเทรนด์)", lambda x: f"{x * 100:.0f}"),
+        "fib_up": ("ทิศคลื่นล่าสุด (Fibonacci)", lambda x: "ขาขึ้น" if x >= 0.5 else "ขาลง"),
+        "fib_retrace": ("ระยะย่อ/เด้งของคลื่น (Fibonacci)", lambda x: f"{x * 100:.0f}%"),
+        "fib_dist": ("ระยะห่างจากระดับ Fibonacci ใกล้สุด", _pct),
+        "fib_range": ("ความกว้างคลื่นล่าสุด", lambda x: f"{x * 100:.2f}%"),
     }
     if name in simple:
         label, fmt = simple[name]
@@ -84,22 +95,28 @@ def top_factors(contrib: dict[str, float], row: dict[str, float], primary: str, 
     return {"up": up, "down": down}
 
 
-def peer_effects(model, X, contrib: dict[str, float], peers: list[str]) -> dict[str, float]:  # noqa: ANN001
-    """Percentage-point change in P(up) caused by each peer's features for the latest row.
+def group_effects(model, X, contrib: dict[str, float], groups: dict[str, tuple[str, ...]]) -> dict[str, float]:  # noqa: ANN001
+    """Percentage-point change in P(up) caused by each group of features for the latest row.
 
-    The peer's summed contributions are removed from the raw log-odds and the result is passed
+    The group's summed contributions are removed from the raw log-odds and the result is passed
     through the same calibration, so the number is directly comparable with the shown P(up).
+    Groups the model does not use (all contributions zero or absent) are left out.
     """
     raw = float(model.raw_proba(X.iloc[[-1]])[0])
     raw = min(max(raw, 1e-6), 1 - 1e-6)
     logit = math.log(raw / (1 - raw))
     p = float(model.calibrate(np.array([raw]))[0])
     out = {}
-    for sym in peers:
-        tag = sym.replace("/", "").lower() + "_"
-        push = sum(c for f, c in contrib.items() if f.startswith(tag))
+    for name, feats in groups.items():
+        push = sum(contrib.get(f, 0.0) for f in feats)
         if push == 0:
             continue
         without = 1 / (1 + math.exp(-(logit - push)))
-        out[sym] = p - float(model.calibrate(np.array([without]))[0])
+        out[name] = p - float(model.calibrate(np.array([without]))[0])
     return out
+
+
+def peer_effects(model, X, contrib: dict[str, float], peers: list[str]) -> dict[str, float]:  # noqa: ANN001
+    """group_effects with one group per peer (every feature starting with its tag)."""
+    groups = {sym: tuple(f for f in contrib if f.startswith(sym.replace("/", "").lower() + "_")) for sym in peers}
+    return group_effects(model, X, contrib, groups)

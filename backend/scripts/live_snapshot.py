@@ -206,6 +206,7 @@ def add_last_valid(pred: dict, frames: dict[str, pd.DataFrame], predictor: Predi
                 "p_down": p["p_down"],
                 "expected_move": p.get("expected_move"),
                 "peer_effects": p.get("peer_effects"),
+                "indicator_effects": p.get("indicator_effects"),
                 "target_at": dual_time(target_time(made, h)),
             }
     return pred

@@ -6,6 +6,10 @@ Conventions follow TradingView / TA-Lib so values match common charting tools:
 - Bollinger Bands use the population standard deviation (ddof=0).
 - VWAP is anchored at each US/Eastern calendar day (pre-market included) and uses the
   typical price (H+L+C)/3.
+- Stoch RSI is TradingView's (RSI 14, stochastic 14, %K = SMA 3, %D = SMA 3); DMI/ADX use
+  Wilder's smoothing like TradingView's "DMI" (length 14, ADX smoothing 14).
+- Fibonacci levels come from the swing high and low of the last `lookback` bars (one regular
+  session of 1-minute bars by default); whichever came last sets the trend direction.
 
 Every function is causal: the value at bar t depends only on bars <= t (no look-ahead).
 """
@@ -162,6 +166,80 @@ def relative_volume(df: pd.DataFrame, lookback_days: int = 20, min_days: int = 5
     return pd.DataFrame({"rvol_bar": rvol_bar, "rvol_cum": rvol_cum}, index=df.index)
 
 
+def stoch_rsi(close: pd.Series, rsi_n: int = 14, stoch_n: int = 14, k: int = 3, d: int = 3) -> pd.DataFrame:
+    r = rsi(close, rsi_n)
+    lo = r.rolling(stoch_n, min_periods=stoch_n).min()
+    hi = r.rolling(stoch_n, min_periods=stoch_n).max()
+    with np.errstate(divide="ignore", invalid="ignore"):
+        raw = 100 * (r - lo) / (hi - lo)
+    raw = raw.where(hi > lo, 50.0).where(lo.notna())  # flat RSI over the window -> middle
+    k_line = sma(raw, k)
+    return pd.DataFrame({"stochrsi_k": k_line, "stochrsi_d": sma(k_line, d)}, index=close.index)
+
+
+def dmi(high: pd.Series, low: pd.Series, close: pd.Series, n: int = 14, adx_n: int = 14) -> pd.DataFrame:
+    up = high.diff()
+    down = -low.diff()
+    plus_dm = up.where((up > down) & (up > 0), 0.0)
+    minus_dm = down.where((down > up) & (down > 0), 0.0)
+    plus_dm.iloc[:1] = np.nan
+    minus_dm.iloc[:1] = np.nan
+    tr = rma(true_range(high, low, close).where(plus_dm.notna()), n)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        plus_di = 100 * rma(plus_dm, n) / tr
+        minus_di = 100 * rma(minus_dm, n) / tr
+        s = plus_di + minus_di
+        dx = (100 * (plus_di - minus_di).abs() / s).where(s > 0, 0.0).where(s.notna())
+    return pd.DataFrame({"plus_di": plus_di, "minus_di": minus_di, "adx": rma(dx, adx_n)}, index=close.index)
+
+
+FIB_RATIOS = (0.236, 0.382, 0.5, 0.618, 0.786)
+
+
+def fibonacci(df: pd.DataFrame, lookback: int = 390) -> pd.DataFrame:
+    """Retracement of the latest swing (the high and low of the last `lookback` bars).
+
+    fib_up = 1 when the low came before the high (an up-move now pulling back), else 0.
+    fib_retrace = how far price has come back from the swing's end, as a fraction of the swing
+    (0 = at the end of the move, 1 = all the way back to its start). fib_level is the nearest
+    standard ratio (0, 23.6 … 78.6 %, 1) and fib_dist the signed distance to it in price terms.
+    """
+    h = df["high"].to_numpy(dtype=float)
+    lo = df["low"].to_numpy(dtype=float)
+    c = df["close"].to_numpy(dtype=float)
+    n = len(df)
+    out = {k: np.full(n, np.nan) for k in ("fib_high", "fib_low", "fib_up", "fib_retrace", "fib_level", "fib_dist")}
+    if n < lookback:
+        return pd.DataFrame(out, index=df.index)
+    from numpy.lib.stride_tricks import sliding_window_view
+
+    hw = sliding_window_view(np.nan_to_num(h, nan=-np.inf), lookback)
+    lw = sliding_window_view(np.nan_to_num(lo, nan=np.inf), lookback)
+    hi_pos = hw.argmax(axis=1)  # first occurrence of the window's high
+    lo_pos = lw.argmin(axis=1)
+    idx = np.arange(lookback - 1, n)
+    swing_hi = hw[np.arange(len(hw)), hi_pos]
+    swing_lo = lw[np.arange(len(lw)), lo_pos]
+    rng = swing_hi - swing_lo
+    up = (lo_pos < hi_pos).astype(float)
+    cc = c[idx]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        retrace = np.where(up == 1, (swing_hi - cc) / rng, (cc - swing_lo) / rng)
+    levels = np.array((0.0, *FIB_RATIOS, 1.0))
+    nearest = levels[np.abs(retrace[:, None] - levels[None, :]).argmin(axis=1)]
+    ok = rng > 0
+    out["fib_high"][idx] = swing_hi
+    out["fib_low"][idx] = swing_lo
+    out["fib_up"][idx] = up
+    out["fib_retrace"][idx] = np.where(ok, retrace, np.nan)
+    out["fib_level"][idx] = np.where(ok, nearest, np.nan)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        # price distance to the nearest level (positive = price above that level's price)
+        level_price = np.where(up == 1, swing_hi - nearest * rng, swing_lo + nearest * rng)
+        out["fib_dist"][idx] = np.where(ok, cc / level_price - 1, np.nan)
+    return pd.DataFrame(out, index=df.index)
+
+
 def compute_all(df: pd.DataFrame) -> pd.DataFrame:
     """All dashboard indicators for an OHLCV frame (tz-aware UTC index, ascending)."""
     c = df["close"]
@@ -176,4 +254,7 @@ def compute_all(df: pd.DataFrame) -> pd.DataFrame:
     out = out.join(bb)
     out["atr14"] = atr(df["high"], df["low"], c, 14)
     out = out.join(relative_volume(df))
+    out = out.join(stoch_rsi(c))
+    out = out.join(dmi(df["high"], df["low"], c))
+    out = out.join(fibonacci(df))
     return out

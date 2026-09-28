@@ -183,3 +183,43 @@ def test_compute_all_is_causal():
     cut = 250
     part = ind.compute_all(df.iloc[:cut])
     pd.testing.assert_frame_equal(full.iloc[:cut], part, check_exact=False, rtol=1e-9)
+
+
+def test_stoch_rsi_matches_definition_and_bounds():
+    df = ohlcv(random_walk(400, seed=7))
+    out = ind.stoch_rsi(df["close"])
+    r = ind.rsi(df["close"], 14)
+    raw = 100 * (r - r.rolling(14).min()) / (r.rolling(14).max() - r.rolling(14).min())
+    k = raw.rolling(3).mean()
+    pd.testing.assert_series_equal(out["stochrsi_k"].dropna(), k.dropna(), check_names=False)
+    pd.testing.assert_series_equal(out["stochrsi_d"].dropna(), k.rolling(3).mean().dropna(), check_names=False)
+    v = out.dropna()
+    assert ((v >= 0) & (v <= 100)).all().all()
+
+
+def test_dmi_follows_trend_direction():
+    up = ohlcv(np.linspace(40, 60, 200))
+    down = ohlcv(np.linspace(60, 40, 200))
+    u, d = ind.dmi(up["high"], up["low"], up["close"]).iloc[-1], ind.dmi(down["high"], down["low"], down["close"]).iloc[-1]
+    assert u["plus_di"] > u["minus_di"] and u["adx"] > 25
+    assert d["minus_di"] > d["plus_di"] and d["adx"] > 25
+
+
+def test_fibonacci_retracement_of_an_up_move():
+    # 400 bars: rise 40 -> 50, then pull back to 46.18 (38.2% of the 10-point move)
+    closes = np.concatenate([np.linspace(40, 50, 300), np.linspace(50, 46.18, 100)])
+    df = ohlcv(closes, spread=0.0)
+    f = ind.fibonacci(df, lookback=400).iloc[-1]  # window spans the whole swing
+    assert f["fib_up"] == 1 and f["fib_high"] == pytest.approx(50, abs=0.01)
+    assert f["fib_retrace"] == pytest.approx(0.382, abs=0.01)
+    assert f["fib_level"] == pytest.approx(0.382)
+    assert abs(f["fib_dist"]) < 0.002
+    assert ind.fibonacci(df.iloc[:100], lookback=390).isna().all().all()  # not enough bars yet
+
+
+def test_new_indicators_have_no_look_ahead():
+    df = ohlcv(random_walk(600, seed=3))
+    full = ind.compute_all(df)
+    cut = ind.compute_all(df.iloc[:450])
+    cols = ["stochrsi_k", "stochrsi_d", "plus_di", "minus_di", "adx", "fib_retrace", "fib_dist"]
+    pd.testing.assert_frame_equal(full[cols].iloc[:450], cut[cols])

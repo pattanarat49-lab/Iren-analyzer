@@ -69,7 +69,7 @@ def test_missing_values_are_neutral_not_errors():
                 signal=[np.nan], hist=[np.nan], bb_upper=[np.nan], bb_lower=[np.nan], bb_mid=[np.nan],
                 bb_bandwidth=[np.nan], atr14=[np.nan], rvol_cum=[np.nan], rvol_bar=[np.nan])
     sigs = sg.build_signals(40.0, ind, day_change=None, iex_only=False)
-    assert len(sigs) == 9 and all(s.signal == "neutral" and s.value is None for s in sigs)
+    assert len(sigs) == 12 and all(s.signal == "neutral" and s.value is None for s in sigs)
     summary = sg.summarize(sigs)
     assert summary["overall"] == "neutral" and "ไม่ใช่ความน่าจะเป็น" in summary["explanation"]
 

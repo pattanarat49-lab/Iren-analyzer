@@ -604,6 +604,15 @@ document.getElementById("foot").textContent =
     return `<div class="ref"><b>ผลจาก ${sym}</b><br>${dir} <b class="num chg ${pts > 0 ? "up" : "down"}">${pts > 0 ? "+" : "−"}${Math.abs(pts).toFixed(2)} จุด</b></div>`;
   }
 
+  function indicatorLine(ie, h) {
+    const pts = (x) => `<b class="num chg ${x > 0 ? "up" : x < 0 ? "down" : ""}">${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x * 100).toFixed(2)}</b>`;
+    if (ie && Object.keys(ie).length) {
+      return `<div class="ref"><b>ผลจาก indicator (จุด %)</b><br>${Object.entries(ie).map(([k, v]) => `${esc(k)} ${pts(v)}`).join(" · ")}</div>`;
+    }
+    if (h !== "5m") return `<div class="note">Stoch RSI / DMI / Fibonacci ไม่ได้ใช้คำนวณช่วงนี้ เพราะทำให้ผลทดสอบย้อนหลังแย่ลง</div>`;
+    return "";
+  }
+
   function probs(d) {
     const p = d.prediction || {};
     const box = $("lv-probs");
@@ -633,6 +642,7 @@ document.getElementById("foot").textContent =
         <div class="gauge" aria-hidden="true"><i class="gu" style="width:${up}%"></i><i class="gd" style="width:${dn}%"></i></div>
         <div class="ref"><b>ข้อมูลที่ใช้อ้างอิง</b><br>ราคา <span class="num">${src.price != null ? src.price.toFixed(2) : "–"}</span> ณ ${fmtRef(src.made_at)}<br>วัดผลที่ ${fmtRef(src.target_at)}${v.model ? `<br>โมเดล ${esc(v.model)}` : ""}</div>
         ${cifrLine(live ? v.peer_effects : lv.peer_effects)}
+        ${indicatorLine(live ? v.indicator_effects : lv.indicator_effects, h)}
         ${history(v, src.p_up)}
         ${em ? `<div class="note">กรอบราคาที่คาด (ตาม ATR): <span class="num">${em.low.toFixed(2)} – ${em.high.toFixed(2)}</span> (±${em.move_pct.toFixed(1)}%)</div>` : ""}
         ${live ? "" : `<div class="note">${esc(v.invalid_reason || "")}</div>`}
@@ -644,8 +654,10 @@ document.getElementById("foot").textContent =
   function signals(d) {
     const a = d.analysis || {};
     $("lv-sum").textContent = a.summary ? a.summary.explanation : (a.message || "");
+    const levels = (s) => s.key === "fib" && s.extra && s.extra.levels
+      ? `<br><small style="color:var(--ink-3)">ระดับ ${Object.entries(s.extra.levels).map(([k, v]) => `${k} <span class="num">${v.toFixed(2)}</span>`).join(" · ")}</small>` : "";
     $("lv-sigs").innerHTML = (a.indicators || []).map((s) =>
-      `<div class="sig"><span class="nm">${esc(s.name)}</span><span class="tag ${s.signal}">${SIG[s.signal] || s.signal}</span><span class="ex">${esc(s.explanation)}</span></div>`).join("");
+      `<div class="sig"><span class="nm">${esc(s.name)}</span><span class="tag ${s.signal}">${SIG[s.signal] || s.signal}</span><span class="ex">${esc(s.explanation)}${levels(s)}</span></div>`).join("");
     const peers = Object.values(d.quotes).filter((q) => q.symbol !== d.primary);
     $("lv-peers").innerHTML = peers.map((q) =>
       `<div><span>${esc(q.symbol)}</span><span class="num chg ${q.change_pct > 0 ? "up" : q.change_pct < 0 ? "down" : ""}" style="font-size:13px">${pc(q.change_pct)}</span></div>`).join("");

@@ -11,8 +11,8 @@ import numpy as np
 import pandas as pd
 
 from ..market.clock import dual_time
-from .explain import peer_effects, top_factors
-from .features import HORIZON_TH, HORIZONS, build_features, expected_move
+from .explain import group_effects, peer_effects, top_factors
+from .features import HORIZON_TH, HORIZONS, INDICATOR_GROUPS, build_features, expected_move
 
 log = logging.getLogger(__name__)
 UTC = timezone.utc
@@ -107,6 +107,7 @@ class Predictor:
                 },
                 "factors": top_factors(contrib, row, self.primary, self.peers),
                 "peer_effects": peer_effects(m, last, contrib, self.peers),
+                "indicator_effects": group_effects(m, last, contrib, INDICATOR_GROUPS),
                 "expected_move": expected_move(price, row.get("atr") or float("nan"), h, row.get("mins_to_eod")),
                 "trained_at": b.get("trained_at"),
                 "source": b.get("source"),

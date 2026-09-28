@@ -241,6 +241,85 @@ def rvol_signal(ind: pd.DataFrame, day_change: float | None, iex_only: bool) -> 
     return IndicatorSignal("rvol", name, r, f"{r:.2f}x", sig, text, extra)
 
 
+def _last(ind: pd.DataFrame, col: str, back: int = 1) -> float | None:
+    """Value `back` rows from the end, or None when the column or row is missing."""
+    if col not in ind.columns or len(ind) < back:
+        return None
+    return _f(ind[col].iloc[-back])
+
+
+def stochrsi_signal(ind: pd.DataFrame) -> IndicatorSignal:
+    k, d = _last(ind, "stochrsi_k"), _last(ind, "stochrsi_d")
+    name = "Stoch RSI(14,14,3,3)"
+    if not _ok(k, d):
+        return _missing("stochrsi", name)
+    kp, dp = _last(ind, "stochrsi_k", 2), _last(ind, "stochrsi_d", 2)
+    crossed_up = _ok(kp, dp) and kp <= dp and k > d
+    crossed_down = _ok(kp, dp) and kp >= dp and k < d
+    if k >= 80:
+        sig: Signal = "bearish"
+        text = f"%K {k:.0f} สูงกว่า 80 คือ RSI อยู่ใกล้จุดสูงสุดของช่วง (overbought) มีโอกาสย่อตัวระยะสั้น"
+        if crossed_down:
+            text += " และ %K เพิ่งตัดลงใต้ %D"
+    elif k <= 20:
+        sig = "bullish"
+        text = f"%K {k:.0f} ต่ำกว่า 20 คือ RSI อยู่ใกล้จุดต่ำสุดของช่วง (oversold) มีโอกาสเด้งระยะสั้น"
+        if crossed_up:
+            text += " และ %K เพิ่งตัดขึ้นเหนือ %D"
+    elif crossed_up:
+        sig, text = "bullish", f"%K ({k:.0f}) เพิ่งตัดขึ้นเหนือ %D ({d:.0f}) โมเมนตัมเริ่มหันขึ้น"
+    elif crossed_down:
+        sig, text = "bearish", f"%K ({k:.0f}) เพิ่งตัดลงใต้ %D ({d:.0f}) โมเมนตัมเริ่มหันลง"
+    elif k - d > 5:
+        sig, text = "bullish", f"%K ({k:.0f}) อยู่เหนือ %D ({d:.0f}) โมเมนตัมระยะสั้นเป็นขาขึ้น"
+    elif d - k > 5:
+        sig, text = "bearish", f"%K ({k:.0f}) อยู่ใต้ %D ({d:.0f}) โมเมนตัมระยะสั้นเป็นขาลง"
+    else:
+        sig, text = "neutral", f"%K ({k:.0f}) กับ %D ({d:.0f}) ใกล้กัน ยังไม่มีทิศทางชัด"
+    return IndicatorSignal("stochrsi", name, k, f"%K {k:.0f} / %D {d:.0f}", sig, text, {"k": k, "d": d})
+
+
+def dmi_signal(ind: pd.DataFrame) -> IndicatorSignal:
+    p, m, a = (_last(ind, c) for c in ("plus_di", "minus_di", "adx"))
+    name = "DMI(14) / ADX"
+    if not _ok(p, m, a):
+        return _missing("dmi", name)
+    strength = "แรงมาก" if a >= 40 else "แรง" if a >= 25 else "อ่อน"
+    if a < 20:
+        sig: Signal = "neutral"
+        text = f"ADX {a:.0f} ต่ำกว่า 20 ยังไม่มีเทรนด์ชัด (+DI {p:.0f}, −DI {m:.0f}) ราคามีแนวโน้มแกว่งในกรอบ"
+    elif p > m:
+        sig = "bullish"
+        text = f"+DI ({p:.0f}) อยู่เหนือ −DI ({m:.0f}) และ ADX {a:.0f} แสดงว่าเทรนด์ขาขึ้น{strength}"
+    else:
+        sig = "bearish"
+        text = f"−DI ({m:.0f}) อยู่เหนือ +DI ({p:.0f}) และ ADX {a:.0f} แสดงว่าเทรนด์ขาลง{strength}"
+    return IndicatorSignal("dmi", name, a, f"+DI {p:.0f} / −DI {m:.0f} / ADX {a:.0f}", sig, text, {"plus_di": p, "minus_di": m, "adx": a})
+
+
+def fibonacci_signal(price: float, ind: pd.DataFrame) -> IndicatorSignal:
+    hi, lo, up, r = (_last(ind, c) for c in ("fib_high", "fib_low", "fib_up", "fib_retrace"))
+    name = "Fibonacci"
+    if not _ok(price, hi, lo, up, r) or hi <= lo:
+        return _missing("fib", name, "ข้อมูลยังไม่พอสำหรับหาจุดสูง-ต่ำ (ต้องมีอย่างน้อย 390 แท่ง)")
+    rng = hi - lo
+    ratios = (0.236, 0.382, 0.5, 0.618, 0.786)
+    # level prices measured back from the end of the swing
+    levels = {f"{x * 100:.1f}%": (hi - x * rng) if up else (lo + x * rng) for x in ratios}
+    move = "ขาขึ้น" if up else "ขาลง"
+    back = "ย่อตัว" if up else "เด้งกลับ"
+    if r < 0.236:
+        sig: Signal = "bullish" if up else "bearish"
+        text = f"คลื่น{move}ล่าสุด ({_price(lo)}–{_price(hi)}) ราคา{back}เพียง {r:.0%} ยังใกล้ปลายคลื่น เทรนด์{move}ยังแข็งแรง"
+    elif r <= 0.618:
+        sig = "neutral"
+        text = f"คลื่น{move}ล่าสุด ({_price(lo)}–{_price(hi)}) ราคา{back}มาแล้ว {r:.0%} อยู่ในโซนปกติ 23.6–61.8% ต้องดูว่าจะกลับไปทาง{move}ต่อหรือไม่"
+    else:
+        sig = "bearish" if up else "bullish"
+        text = f"คลื่น{move}ล่าสุด ({_price(lo)}–{_price(hi)}) ราคา{back}ลึกถึง {r:.0%} เกิน 61.8% คลื่น{move}เริ่มอ่อนแรง"
+    return IndicatorSignal("fib", name, r, f"{back} {r:.0%}", sig, text, {"high": hi, "low": lo, "up": bool(up), "levels": levels})
+
+
 def build_signals(
     price: float,
     ind: pd.DataFrame,
@@ -259,6 +338,9 @@ def build_signals(
         bollinger_signal(price, ind),
         atr_signal(price, ind, bar_minutes),
         rvol_signal(ind, day_change, iex_only),
+        stochrsi_signal(ind),
+        dmi_signal(ind),
+        fibonacci_signal(price, ind),
     ]
 
 

@@ -41,6 +41,16 @@ HORIZON_ONLY: dict[str, tuple[str, ...]] = {
     for kind, ks in (("ret", FAST_LOOKBACKS), ("rel", (*FAST_LOOKBACKS, 5, 60)))
     for k in ks
 }
+# Stoch RSI, DMI/ADX and Fibonacci features. In the walk-forward comparison they left the 5m
+# model about unchanged (LightGBM better, logistic regression slightly worse) but made 15m
+# slightly and 1h / end-of-day clearly worse (eod logistic Brier diff -0.00123 -> +0.00009),
+# largely repeating what RSI, EMAs, ATR and past returns already say. So only 5m uses them.
+INDICATOR_GROUPS: dict[str, tuple[str, ...]] = {
+    "Stoch RSI": ("stochrsi_k", "stochrsi_d", "stochrsi_kd"),
+    "DMI": ("di_plus", "di_minus", "di_diff", "adx"),
+    "Fibonacci": ("fib_up", "fib_retrace", "fib_dist", "fib_range"),
+}
+HORIZON_ONLY.update({f: ("5m",) for group in INDICATOR_GROUPS.values() for f in group})
 
 
 @dataclass
@@ -146,6 +156,20 @@ def build_features(frames: dict[str, pd.DataFrame], primary: str, peers: list[st
     X["atr_pct"] = atr / close
     X["rvol_cum"] = np.log1p(iv["rvol_cum"].to_numpy())
     X["rvol_bar"] = np.log1p(iv["rvol_bar"].to_numpy())
+    # Stoch RSI, DMI/ADX and Fibonacci retracement (scaled to roughly -0.5..0.5 or fractions)
+    k, d = iv["stochrsi_k"].to_numpy(), iv["stochrsi_d"].to_numpy()
+    X["stochrsi_k"] = k / 100 - 0.5
+    X["stochrsi_d"] = d / 100 - 0.5
+    X["stochrsi_kd"] = (k - d) / 100
+    pdi, mdi = iv["plus_di"].to_numpy(), iv["minus_di"].to_numpy()
+    X["di_plus"] = pdi / 100
+    X["di_minus"] = mdi / 100
+    X["di_diff"] = (pdi - mdi) / 100
+    X["adx"] = iv["adx"].to_numpy() / 100
+    X["fib_up"] = iv["fib_up"].to_numpy()
+    X["fib_retrace"] = iv["fib_retrace"].to_numpy()
+    X["fib_dist"] = iv["fib_dist"].to_numpy()
+    X["fib_range"] = (iv["fib_high"].to_numpy() - iv["fib_low"].to_numpy()) / close
 
     # --- volatility regime ---
     r1 = pd.Series(np.log(close), index=df.index).diff()

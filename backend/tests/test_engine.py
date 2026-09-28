@@ -41,7 +41,7 @@ async def test_engine_end_to_end(settings, engine):
     await eng.reload_async()
     res = eng.compute(1)
     assert res["ready"] and res["bars_used"] == 300
-    assert [i["key"] for i in res["indicators"]] == ["ema9", "ema21", "ema50", "vwap", "rsi14", "macd", "bb", "atr14", "rvol"]
+    assert [i["key"] for i in res["indicators"]] == ["ema9", "ema21", "ema50", "vwap", "rsi14", "macd", "bb", "atr14", "rvol", "stochrsi", "dmi", "fib"]
     assert {r["symbol"] for r in res["relative"]} == {"CIFR", "NBIS", "CRWV", "NVDA", "QQQ", "BTC/USD"}
     assert res["summary"]["overall"] in ("bullish", "bearish", "neutral")
 
