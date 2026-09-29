@@ -3,7 +3,9 @@ name: Pages
 # Publishes the results page to GitHub Pages: site/index.html, the latest backtest report and a
 # fresh live snapshot (quotes, indicators, P(up) per horizon) computed on the newest Alpaca bars.
 # Runs every 5 minutes on US trading days (pre-market to after-hours), after every Daily
-# backtest run, when the page changes, and by hand. GitHub may start scheduled runs late.
+# backtest run, when the page changes, and by hand. GitHub throttles those schedules to about
+# every 15-25 minutes, so during the regular session each run also starts the next one itself
+# (at most every 2 minutes, one chain at a time); the schedule restarts the chain if it stops.
 # One-time setup: Settings → Pages → Build and deployment → Source: "GitHub Actions".
 
 on:
@@ -24,6 +26,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write # to start the next run during the session
 
 concurrency:
   group: pages
@@ -40,6 +43,9 @@ jobs:
       ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID || secrets.ALPACA_APIKEY || secrets.APCA_API_KEY_ID }}
       ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY || secrets.ALPACA_SECRETKEY || secrets.APCA_API_SECRET_KEY }}
     steps:
+      - name: Note start time
+        run: echo "RUN_T0=$(date +%s)" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v5
         with:
           # After a Daily backtest run, pick up the report the bot just committed.
@@ -103,3 +109,26 @@ jobs:
           path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
+
+      # Refresh chain: while the regular session is open, start the next run of this workflow
+      # (runs started with GITHUB_TOKEN via workflow_dispatch are allowed to trigger workflows).
+      # Only when no other Pages run is waiting or running, so there is never more than one chain.
+      - name: Start the next refresh during the session
+        if: github.workflow == 'Pages' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        working-directory: backend
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open=$(python -c "from datetime import datetime, timedelta, timezone
+          from app.market.clock import session_at
+          now = datetime.now(timezone.utc)
+          # from 5 minutes before the open until 5 minutes after the close
+          print(int(session_at(now + timedelta(minutes=5)).session == 'regular' or session_at(now - timedelta(minutes=5)).session == 'regular'))")
+          if [ "$open" != "1" ]; then echo "Market not in session; the schedule takes over."; exit 0; fi
+          others=$(gh run list -R "$GITHUB_REPOSITORY" --workflow pages.yml --limit 20 --json databaseId,status \
+            -q "[.[] | select(.databaseId != ${{ github.run_id }} and (.status == \"queued\" or .status == \"in_progress\" or .status == \"waiting\" or .status == \"pending\" or .status == \"requested\"))] | length")
+          if [ "$others" != "0" ]; then echo "Another Pages run is already queued or running ($others)."; exit 0; fi
+          wait=$(( RUN_T0 + 120 - $(date +%s) ))
+          if [ "$wait" -gt 0 ]; then sleep "$wait"; fi
+          gh workflow run pages.yml -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"
+          echo "Next refresh started."
