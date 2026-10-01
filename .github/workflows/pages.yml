@@ -28,9 +28,12 @@ permissions:
   id-token: write
   actions: write # to start the next run during the session
 
+# A newer run replaces an older one. On 2026-09-30 a run stuck in "waiting" (GitHub never started
+# its deploy job) blocked the queue from 15:09 ET for the rest of the night, because every later
+# run waited behind it. Replacing is safe: each run deploys a complete, fresh site.
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
