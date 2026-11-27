@@ -1,6 +1,6 @@
 # IREN probability backtest (alpaca data)
 
-Generated 2026-11-26T04:16:55+00:00 · data 2024-11-25T16:17:00+00:00 → 2026-11-25T20:59:00+00:00
+Generated 2026-11-27T04:24:27+00:00 · data 2024-11-26T16:25:00+00:00 → 2026-11-25T20:59:00+00:00
 
 > For education only. Not financial advice. Past out-of-sample results do not guarantee
 > future performance. No trading costs or slippage are modelled.
@@ -14,10 +14,10 @@ to beat the baseline with 95 % confidence (day-block bootstrap) on at least 20 t
 
 | Horizon | Best model | Accuracy | Baseline acc. | Brier | Baseline Brier | Brier diff 95% CI | AUC | Test days | Verdict |
 |---|---|---|---|---|---|---|---|---|---|
-| 5m | lgbm | 0.520 | 0.520 | 0.2487 | 0.2496 | [-0.00118, -0.00055] | 0.518 | 250 | ⚠️ **no proven edge** |
-| 15m | lgbm | 0.517 | 0.518 | 0.2494 | 0.2497 | [-0.00068, +0.00003] | 0.514 | 250 | ⚠️ **no proven edge** |
-| 1h | logreg | 0.511 | 0.519 | 0.2498 | 0.2498 | [-0.00025, +0.00024] | 0.506 | 250 | ⚠️ **no proven edge** |
-| eod | logreg | 0.533 | 0.487 | 0.2496 | 0.2503 | [-0.00347, +0.00239] | 0.546 | 250 | ⚠️ **no proven edge** |
+| 5m | lgbm | 0.519 | 0.520 | 0.2488 | 0.2496 | [-0.00109, -0.00049] | 0.516 | 250 | ⚠️ **no proven edge** |
+| 15m | lgbm | 0.518 | 0.518 | 0.2495 | 0.2497 | [-0.00064, +0.00015] | 0.514 | 250 | ⚠️ **no proven edge** |
+| 1h | logreg | 0.512 | 0.519 | 0.2498 | 0.2498 | [-0.00026, +0.00022] | 0.508 | 250 | ⚠️ **no proven edge** |
+| eod | logreg | 0.517 | 0.487 | 0.2496 | 0.2503 | [-0.00323, +0.00198] | 0.544 | 250 | ⚠️ **no proven edge** |
 
 ## 5m (5 นาที)
 
@@ -27,19 +27,19 @@ to beat the baseline with 95 % confidence (day-block bootstrap) on at least 20 t
 | Model | Accuracy | Brier | Log loss | AUC | Brier skill | Confident share (p≥0.55 or ≤0.45) | Confident accuracy | Mean signed fwd return (bp) |
 |---|---|---|---|---|---|---|---|---|
 | baseline | 0.520 | 0.2496 | 0.6924 | – | – | – | – | – |
-| logreg | 0.521 | 0.2488 | 0.6907 | 0.519 | 0.0031 | 0.024 | 0.627 | 1.19 |
-| lgbm | 0.520 | 0.2487 | 0.6904 | 0.518 | 0.0035 | 0.042 | 0.589 | 1.01 |
+| logreg | 0.522 | 0.2488 | 0.6907 | 0.518 | 0.0031 | 0.022 | 0.637 | 1.20 |
+| lgbm | 0.519 | 0.2488 | 0.6906 | 0.516 | 0.0032 | 0.040 | 0.591 | 0.93 |
 
 Calibration (lgbm): predicted vs observed frequency of "up"
 
 | Predicted bin | Mean predicted | Observed | Rows |
 |---|---|---|---|
-| 0.1–0.2 | 0.188 | 0.041 | 146 |
-| 0.2–0.3 | 0.231 | 0.164 | 599 |
-| 0.3–0.4 | 0.366 | 0.532 | 111 |
-| 0.4–0.5 | 0.479 | 0.475 | 69,032 |
-| 0.5–0.6 | 0.514 | 0.499 | 27,065 |
-| 0.6–0.7 | 0.602 | 1.000 | 2 |
+| 0.1–0.2 | 0.182 | 0.045 | 134 |
+| 0.2–0.3 | 0.241 | 0.161 | 614 |
+| 0.3–0.4 | 0.374 | 0.475 | 118 |
+| 0.4–0.5 | 0.479 | 0.477 | 70,330 |
+| 0.5–0.6 | 0.513 | 0.497 | 25,736 |
+| 0.6–0.7 | 0.608 | 0.478 | 23 |
 
 ## 15m (15 นาที)
 
@@ -49,17 +49,18 @@ Calibration (lgbm): predicted vs observed frequency of "up"
 | Model | Accuracy | Brier | Log loss | AUC | Brier skill | Confident share (p≥0.55 or ≤0.45) | Confident accuracy | Mean signed fwd return (bp) |
 |---|---|---|---|---|---|---|---|---|
 | baseline | 0.518 | 0.2497 | 0.6926 | – | – | – | – | – |
-| logreg | 0.516 | 0.2496 | 0.6924 | 0.513 | 0.0004 | 0.024 | 0.568 | 1.14 |
-| lgbm | 0.517 | 0.2494 | 0.6919 | 0.514 | 0.0014 | 0.027 | 0.576 | 1.25 |
+| logreg | 0.518 | 0.2496 | 0.6922 | 0.513 | 0.0007 | 0.024 | 0.583 | 1.46 |
+| lgbm | 0.518 | 0.2495 | 0.6920 | 0.514 | 0.0010 | 0.028 | 0.581 | 1.19 |
 
 Calibration (lgbm): predicted vs observed frequency of "up"
 
 | Predicted bin | Mean predicted | Observed | Rows |
 |---|---|---|---|
-| 0.2–0.3 | 0.294 | 0.143 | 105 |
-| 0.3–0.4 | 0.347 | 0.274 | 758 |
-| 0.4–0.5 | 0.483 | 0.478 | 66,213 |
-| 0.5–0.6 | 0.512 | 0.498 | 29,869 |
+| 0.2–0.3 | 0.292 | 0.135 | 89 |
+| 0.3–0.4 | 0.357 | 0.329 | 912 |
+| 0.4–0.5 | 0.483 | 0.477 | 65,954 |
+| 0.5–0.6 | 0.511 | 0.499 | 29,978 |
+| 0.6–0.7 | 0.615 | 1.000 | 12 |
 
 ## 1h (1 ชั่วโมง)
 
@@ -69,17 +70,16 @@ Calibration (lgbm): predicted vs observed frequency of "up"
 | Model | Accuracy | Brier | Log loss | AUC | Brier skill | Confident share (p≥0.55 or ≤0.45) | Confident accuracy | Mean signed fwd return (bp) |
 |---|---|---|---|---|---|---|---|---|
 | baseline | 0.519 | 0.2498 | 0.6927 | – | – | – | – | – |
-| logreg | 0.511 | 0.2498 | 0.6927 | 0.506 | -0.0000 | 0.003 | 0.650 | 4.35 |
-| lgbm | 0.514 | 0.2499 | 0.6930 | 0.499 | -0.0006 | 0.030 | 0.527 | 3.57 |
+| logreg | 0.512 | 0.2498 | 0.6927 | 0.508 | 0.0001 | 0.004 | 0.596 | 4.65 |
+| lgbm | 0.513 | 0.2500 | 0.6931 | 0.498 | -0.0009 | 0.028 | 0.525 | 3.70 |
 
 Calibration (logreg): predicted vs observed frequency of "up"
 
 | Predicted bin | Mean predicted | Observed | Rows |
 |---|---|---|---|
-| 0.2–0.3 | 0.296 | 0.000 | 1 |
-| 0.3–0.4 | 0.357 | 0.447 | 132 |
-| 0.4–0.5 | 0.492 | 0.483 | 84,870 |
-| 0.5–0.6 | 0.507 | 0.470 | 11,897 |
+| 0.3–0.4 | 0.358 | 0.430 | 142 |
+| 0.4–0.5 | 0.492 | 0.482 | 82,469 |
+| 0.5–0.6 | 0.505 | 0.477 | 14,289 |
 
 ## eod (จบวัน (ราคาปิด))
 
@@ -88,18 +88,18 @@ Calibration (logreg): predicted vs observed frequency of "up"
 
 | Model | Accuracy | Brier | Log loss | AUC | Brier skill | Confident share (p≥0.55 or ≤0.45) | Confident accuracy | Mean signed fwd return (bp) |
 |---|---|---|---|---|---|---|---|---|
-| baseline | 0.487 | 0.2503 | 0.6937 | – | – | – | – | – |
-| logreg | 0.533 | 0.2496 | 0.6926 | 0.546 | 0.0026 | 0.217 | 0.554 | 20.24 |
-| lgbm | 0.494 | 0.2512 | 0.6958 | 0.496 | -0.0038 | 0.154 | 0.556 | -6.93 |
+| baseline | 0.487 | 0.2503 | 0.6938 | – | – | – | – | – |
+| logreg | 0.517 | 0.2496 | 0.6925 | 0.544 | 0.0027 | 0.219 | 0.548 | 12.29 |
+| lgbm | 0.493 | 0.2516 | 0.6966 | 0.493 | -0.0053 | 0.174 | 0.533 | -6.26 |
 
 Calibration (logreg): predicted vs observed frequency of "up"
 
 | Predicted bin | Mean predicted | Observed | Rows |
 |---|---|---|---|
-| 0.1–0.2 | 0.176 | 0.000 | 11 |
-| 0.2–0.3 | 0.236 | 0.587 | 126 |
-| 0.3–0.4 | 0.382 | 0.474 | 2,374 |
-| 0.4–0.5 | 0.474 | 0.433 | 42,986 |
-| 0.5–0.6 | 0.527 | 0.506 | 48,247 |
-| 0.6–0.7 | 0.624 | 0.492 | 3,090 |
-| 0.7–0.8 | 0.717 | 0.264 | 125 |
+| 0.1–0.2 | 0.191 | 0.000 | 3 |
+| 0.2–0.3 | 0.228 | 0.650 | 103 |
+| 0.3–0.4 | 0.382 | 0.453 | 1,121 |
+| 0.4–0.5 | 0.469 | 0.443 | 37,847 |
+| 0.5–0.6 | 0.526 | 0.492 | 56,082 |
+| 0.6–0.7 | 0.618 | 0.462 | 1,798 |
+| 0.7–0.8 | 0.703 | 0.000 | 5 |
