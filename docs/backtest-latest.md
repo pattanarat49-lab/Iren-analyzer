@@ -1,6 +1,6 @@
 # IREN probability backtest (alpaca data)
 
-Generated 2026-11-27T04:24:27+00:00 · data 2024-11-26T16:25:00+00:00 → 2026-11-25T20:59:00+00:00
+Generated 2026-11-28T04:04:47+00:00 · data 2024-11-27T16:05:00+00:00 → 2026-11-27T18:16:00+00:00
 
 > For education only. Not financial advice. Past out-of-sample results do not guarantee
 > future performance. No trading costs or slippage are modelled.
@@ -14,92 +14,92 @@ to beat the baseline with 95 % confidence (day-block bootstrap) on at least 20 t
 
 | Horizon | Best model | Accuracy | Baseline acc. | Brier | Baseline Brier | Brier diff 95% CI | AUC | Test days | Verdict |
 |---|---|---|---|---|---|---|---|---|---|
-| 5m | lgbm | 0.519 | 0.520 | 0.2488 | 0.2496 | [-0.00109, -0.00049] | 0.516 | 250 | ⚠️ **no proven edge** |
-| 15m | lgbm | 0.518 | 0.518 | 0.2495 | 0.2497 | [-0.00064, +0.00015] | 0.514 | 250 | ⚠️ **no proven edge** |
-| 1h | logreg | 0.512 | 0.519 | 0.2498 | 0.2498 | [-0.00026, +0.00022] | 0.508 | 250 | ⚠️ **no proven edge** |
-| eod | logreg | 0.517 | 0.487 | 0.2496 | 0.2503 | [-0.00323, +0.00198] | 0.544 | 250 | ⚠️ **no proven edge** |
+| 5m | logreg | 0.521 | 0.520 | 0.2488 | 0.2496 | [-0.00106, -0.00055] | 0.517 | 250 | ✅ edge |
+| 15m | lgbm | 0.518 | 0.518 | 0.2495 | 0.2497 | [-0.00059, +0.00030] | 0.513 | 250 | ⚠️ **no proven edge** |
+| 1h | logreg | 0.513 | 0.518 | 0.2499 | 0.2498 | [-0.00018, +0.00041] | 0.502 | 250 | ⚠️ **no proven edge** |
+| eod | logreg | 0.519 | 0.463 | 0.2506 | 0.2502 | [-0.00257, +0.00362] | 0.537 | 250 | ⚠️ **no proven edge** |
 
 ## 5m (5 นาที)
 
-- Test rows: 96,955 over 250 days; share of "up": 0.480
-- Verdict: ความแม่นยำของโมเดลไม่สูงกว่าการเดาแบบง่าย
+- Test rows: 96,965 over 250 days; share of "up": 0.480
+- Verdict: โมเดลดีกว่าการเดาแบบง่ายอย่างมีนัยสำคัญในการทดสอบย้อนหลังแบบ walk-forward
 
 | Model | Accuracy | Brier | Log loss | AUC | Brier skill | Confident share (p≥0.55 or ≤0.45) | Confident accuracy | Mean signed fwd return (bp) |
 |---|---|---|---|---|---|---|---|---|
 | baseline | 0.520 | 0.2496 | 0.6924 | – | – | – | – | – |
-| logreg | 0.522 | 0.2488 | 0.6907 | 0.518 | 0.0031 | 0.022 | 0.637 | 1.20 |
-| lgbm | 0.519 | 0.2488 | 0.6906 | 0.516 | 0.0032 | 0.040 | 0.591 | 0.93 |
+| logreg | 0.521 | 0.2488 | 0.6906 | 0.517 | 0.0032 | 0.021 | 0.639 | 1.07 |
+| lgbm | 0.517 | 0.2489 | 0.6907 | 0.515 | 0.0030 | 0.040 | 0.584 | 0.59 |
 
-Calibration (lgbm): predicted vs observed frequency of "up"
+Calibration (logreg): predicted vs observed frequency of "up"
 
 | Predicted bin | Mean predicted | Observed | Rows |
 |---|---|---|---|
-| 0.1–0.2 | 0.182 | 0.045 | 134 |
-| 0.2–0.3 | 0.241 | 0.161 | 614 |
-| 0.3–0.4 | 0.374 | 0.475 | 118 |
-| 0.4–0.5 | 0.479 | 0.477 | 70,330 |
-| 0.5–0.6 | 0.513 | 0.497 | 25,736 |
-| 0.6–0.7 | 0.608 | 0.478 | 23 |
+| 0.0–0.1 | 0.096 | 0.182 | 22 |
+| 0.1–0.2 | 0.174 | 0.052 | 174 |
+| 0.2–0.3 | 0.243 | 0.175 | 417 |
+| 0.3–0.4 | 0.354 | 0.341 | 299 |
+| 0.4–0.5 | 0.483 | 0.477 | 76,277 |
+| 0.5–0.6 | 0.513 | 0.502 | 19,671 |
+| 0.6–0.7 | 0.609 | 0.514 | 105 |
 
 ## 15m (15 นาที)
 
-- Test rows: 96,945 over 250 days; share of "up": 0.482
+- Test rows: 96,964 over 250 days; share of "up": 0.482
 - Verdict: Brier score ของโมเดลไม่ได้ดีกว่าการเดาแบบง่าย (base rate) อย่างมีนัยสำคัญทางสถิติ
 
 | Model | Accuracy | Brier | Log loss | AUC | Brier skill | Confident share (p≥0.55 or ≤0.45) | Confident accuracy | Mean signed fwd return (bp) |
 |---|---|---|---|---|---|---|---|---|
 | baseline | 0.518 | 0.2497 | 0.6926 | – | – | – | – | – |
-| logreg | 0.518 | 0.2496 | 0.6922 | 0.513 | 0.0007 | 0.024 | 0.583 | 1.46 |
-| lgbm | 0.518 | 0.2495 | 0.6920 | 0.514 | 0.0010 | 0.028 | 0.581 | 1.19 |
+| logreg | 0.515 | 0.2497 | 0.6924 | 0.509 | 0.0003 | 0.017 | 0.582 | 0.84 |
+| lgbm | 0.518 | 0.2495 | 0.6922 | 0.513 | 0.0007 | 0.024 | 0.567 | 1.60 |
 
 Calibration (lgbm): predicted vs observed frequency of "up"
 
 | Predicted bin | Mean predicted | Observed | Rows |
 |---|---|---|---|
-| 0.2–0.3 | 0.292 | 0.135 | 89 |
-| 0.3–0.4 | 0.357 | 0.329 | 912 |
-| 0.4–0.5 | 0.483 | 0.477 | 65,954 |
-| 0.5–0.6 | 0.511 | 0.499 | 29,978 |
-| 0.6–0.7 | 0.615 | 1.000 | 12 |
+| 0.2–0.3 | 0.289 | 0.081 | 74 |
+| 0.3–0.4 | 0.359 | 0.399 | 1,262 |
+| 0.4–0.5 | 0.483 | 0.477 | 67,280 |
+| 0.5–0.6 | 0.510 | 0.501 | 28,348 |
 
 ## 1h (1 ชั่วโมง)
 
-- Test rows: 96,900 over 250 days; share of "up": 0.481
+- Test rows: 96,921 over 250 days; share of "up": 0.482
 - Verdict: Brier score ของโมเดลไม่ได้ดีกว่าการเดาแบบง่าย (base rate) อย่างมีนัยสำคัญทางสถิติ
 
 | Model | Accuracy | Brier | Log loss | AUC | Brier skill | Confident share (p≥0.55 or ≤0.45) | Confident accuracy | Mean signed fwd return (bp) |
 |---|---|---|---|---|---|---|---|---|
-| baseline | 0.519 | 0.2498 | 0.6927 | – | – | – | – | – |
-| logreg | 0.512 | 0.2498 | 0.6927 | 0.508 | 0.0001 | 0.004 | 0.596 | 4.65 |
-| lgbm | 0.513 | 0.2500 | 0.6931 | 0.498 | -0.0009 | 0.028 | 0.525 | 3.70 |
+| baseline | 0.518 | 0.2498 | 0.6927 | – | – | – | – | – |
+| logreg | 0.513 | 0.2499 | 0.6929 | 0.502 | -0.0004 | 0.004 | 0.583 | 3.17 |
+| lgbm | 0.508 | 0.2501 | 0.6934 | 0.497 | -0.0013 | 0.027 | 0.519 | 0.95 |
 
 Calibration (logreg): predicted vs observed frequency of "up"
 
 | Predicted bin | Mean predicted | Observed | Rows |
 |---|---|---|---|
-| 0.3–0.4 | 0.358 | 0.430 | 142 |
-| 0.4–0.5 | 0.492 | 0.482 | 82,469 |
-| 0.5–0.6 | 0.505 | 0.477 | 14,289 |
+| 0.3–0.4 | 0.374 | 0.556 | 153 |
+| 0.4–0.5 | 0.493 | 0.483 | 90,815 |
+| 0.5–0.6 | 0.506 | 0.461 | 5,953 |
 
 ## eod (จบวัน (ราคาปิด))
 
-- Test rows: 96,959 over 250 days; share of "up": 0.472
+- Test rows: 96,963 over 250 days; share of "up": 0.474
 - Verdict: Brier score ของโมเดลไม่ได้ดีกว่าการเดาแบบง่าย (base rate) อย่างมีนัยสำคัญทางสถิติ
 
 | Model | Accuracy | Brier | Log loss | AUC | Brier skill | Confident share (p≥0.55 or ≤0.45) | Confident accuracy | Mean signed fwd return (bp) |
 |---|---|---|---|---|---|---|---|---|
-| baseline | 0.487 | 0.2503 | 0.6938 | – | – | – | – | – |
-| logreg | 0.517 | 0.2496 | 0.6925 | 0.544 | 0.0027 | 0.219 | 0.548 | 12.29 |
-| lgbm | 0.493 | 0.2516 | 0.6966 | 0.493 | -0.0053 | 0.174 | 0.533 | -6.26 |
+| baseline | 0.463 | 0.2502 | 0.6935 | – | – | – | – | – |
+| logreg | 0.519 | 0.2506 | 0.6946 | 0.537 | -0.0019 | 0.219 | 0.546 | 10.27 |
+| lgbm | 0.499 | 0.2519 | 0.6972 | 0.499 | -0.0070 | 0.131 | 0.535 | -5.53 |
 
 Calibration (logreg): predicted vs observed frequency of "up"
 
 | Predicted bin | Mean predicted | Observed | Rows |
 |---|---|---|---|
-| 0.1–0.2 | 0.191 | 0.000 | 3 |
-| 0.2–0.3 | 0.228 | 0.650 | 103 |
-| 0.3–0.4 | 0.382 | 0.453 | 1,121 |
-| 0.4–0.5 | 0.469 | 0.443 | 37,847 |
-| 0.5–0.6 | 0.526 | 0.492 | 56,082 |
-| 0.6–0.7 | 0.618 | 0.462 | 1,798 |
-| 0.7–0.8 | 0.703 | 0.000 | 5 |
+| 0.1–0.2 | 0.165 | 0.256 | 39 |
+| 0.2–0.3 | 0.271 | 0.436 | 257 |
+| 0.3–0.4 | 0.368 | 0.474 | 3,179 |
+| 0.4–0.5 | 0.472 | 0.444 | 36,758 |
+| 0.5–0.6 | 0.525 | 0.496 | 52,708 |
+| 0.6–0.7 | 0.626 | 0.484 | 3,808 |
+| 0.7–0.8 | 0.729 | 0.196 | 214 |
